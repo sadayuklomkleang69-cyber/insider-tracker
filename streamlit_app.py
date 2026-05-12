@@ -20,13 +20,12 @@ st.markdown("""
         border-left: 6px solid #E74C3C; margin-bottom: 10px;
     }
     .ticker-name { color: #F1C40F; font-size: 22px; font-weight: bold; }
-    .price-text { color: #4FA3FF; font-size: 18px; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. HEADER ---
 st.title('🎯 ระบบจับตาปลาวาฬ: ซื้อ & ขาย')
-st.write(f"อัปเดตล่าสุด: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+st.write(f"ข้อมูลสดจาก Yahoo Finance | อัปเดต: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
 # --- 3. WATCHLIST ---
 watchlist = ['NVDA', 'TSM', 'MSFT', 'PLTR', 'UPST', 'SOFI', 'GOOGL', 'AMD', 'TSLA', 'ARM', 'MU']
@@ -38,13 +37,13 @@ def get_insider_combined():
     for ticker in watchlist:
         try:
             t = yf.Ticker(ticker)
-            # ดึงราคาตลาดปัจจุบันมาสำรองไว้
-            current_price = t.fast_info.get('last_price', 0)
+            # ดึงราคาตลาดปัจจุบันมาสำรองไว้ (หัวใจสำคัญ)
+            current_p = t.fast_info.get('last_price', 0)
             
             df = t.insider_transactions
             if df is not None and not df.empty:
                 df['Symbol'] = ticker
-                df['Current_Price'] = current_price
+                df['Backup_Price'] = current_p
                 df.columns = [str(c).capitalize() for c in df.columns]
                 
                 buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
@@ -58,45 +57,45 @@ def get_insider_combined():
 
 # --- 4. EXECUTION ---
 try:
-    with st.spinner('จาร์วิสกำลังเช็คราคาตลาดให้ท่านประธาน...'):
+    with st.spinner('จาร์วิสกำลังสแกนหาการเคลื่อนไหว...'):
         buys_df, sells_df = get_insider_combined()
 
-    col1, col2 = st.columns(2)
+    col_left, col_right = st.columns(2)
 
-    with col1:
+    with col_left:
         st.subheader("🟢 รายการซื้อ (สะสมของ)")
         if not buys_df.empty:
             buys_df = buys_df.sort_index(ascending=False).head(15)
             for _, row in buys_df.iterrows():
-                # ถ้าราคาเป็น 0 ให้ใช้ราคาตลาดปัจจุบันแทน
-                display_price = row.get('Price', 0)
-                if display_price == 0 or pd.isna(display_price):
-                    display_price = row.get('Current_price', 0)
+                # ถ้า Price เป็น 0 ให้ใช้ Backup_price แทน
+                p = row.get('Price', 0)
+                if p == 0 or pd.isna(p): p = row.get('Backup_price', 0)
                 
                 st.markdown(f"""
                 <div class="buy-card">
                     <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#2ECC71">BUY</span><br>
-                    {int(row['Shares']):,} หุ้น @ <b>${display_price:.2f}</b><br>
-                    <small>{row['Insider']} ({row['Position']})</small>
+                    {int(row['Shares']):,} หุ้น @ <b>${p:.2f}</b><br>
+                    <b>{row['Insider']}</b> ({row['Position']})
                 </div>
                 """, unsafe_allow_html=True)
+        else: st.info("ยังไม่มีรายการซื้อใหม่")
 
-    with col2:
+    with col_right:
         st.subheader("🔴 รายการขาย (ระวังตัว)")
         if not sells_df.empty:
             sells_df = sells_df.sort_index(ascending=False).head(15)
             for _, row in sells_df.iterrows():
-                display_price = row.get('Price', 0)
-                if display_price == 0 or pd.isna(display_price):
-                    display_price = row.get('Current_price', 0)
+                p = row.get('Price', 0)
+                if p == 0 or pd.isna(p): p = row.get('Backup_price', 0)
 
                 st.markdown(f"""
                 <div class="sell-card">
                     <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#E74C3C">SELL</span><br>
-                    {int(row['Shares']):,} หุ้น @ <b>${display_price:.2f}</b><br>
-                    <small>{row['Insider']} ({row['Position']})</small>
+                    {int(row['Shares']):,} หุ้น @ <b>${p:.2f}</b><br>
+                    <b>{row['Insider']}</b> ({row['Position']})
                 </div>
                 """, unsafe_allow_html=True)
+        else: st.success("ปลอดภัย! ยังไม่มีปลาวาฬเทขายในกลุ่มนี้ครับ")
 
 except Exception as e:
     st.error(f"ระบบกำลังปรับปรุง: {e}")
