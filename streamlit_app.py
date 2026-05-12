@@ -4,6 +4,7 @@ import yfinance as yf
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
 import ta as ta
+
 # 1. ตั้งค่าหน้ากระดาษ
 st.set_page_config(page_title="Chairman Nu Command Center V7.2", layout="wide")
 st_autorefresh(interval=300000, key="datarefresh")
@@ -11,8 +12,6 @@ st_autorefresh(interval=300000, key="datarefresh")
 # 2. ระบบจัดการเงินสด
 if 'base_cash' not in st.session_state:
     st.session_state.base_cash = 4000
-if 'history_logs' not in st.session_state:
-    st.session_state.history_logs = []
 
 # 3. เป้าหมายราคา
 target_prices = {
@@ -22,31 +21,20 @@ target_prices = {
 }
 tickers = list(target_prices.keys())
 
-# 4. ฟังก์ชันดึงราคา + คำนวณอารมณ์ตลาด (RSI)
+# 4. ฟังก์ชันดึงราคา + คำนวณอารมณ์ตลาด
 @st.cache_data(ttl=300)
 def get_live_data_with_sentiment(ticker_list):
     stock_data = []
     for symbol in ticker_list:
         try:
             t = yf.Ticker(symbol)
-            df = t.history(period="1mo") # ดึงข้อมูล 1 เดือนเพื่อหา RSI
-            
-            # คำนวณ RSI (อารมณ์ตลาด)
-            df['RSI'] = ta.rsi(df['Close'], length=14)
-            current_rsi = df['RSI'].iloc[-1]
-            
-            current_p = df['Close'].iloc[-1]
-            prev_p = df['Close'].iloc[-2]
-            stock_data = []
-    for symbol in ticker_list:
-        try:
-            t = yf.Ticker(symbol)
             df = t.history(period="1mo")
-            if df.empty: continue
+            if df.empty or len(df) < 14:
+                continue
 
             # คำนวณ RSI
             rsi_series = ta.rsi(df['Close'], length=14)
-            current_rsi = rsi_series.iloc[-1] if rsi_series is not None and not rsi_series.empty else 50
+            current_rsi = rsi_series.iloc[-1] if not rsi_series.empty else 50
             
             current_p = df['Close'].iloc[-1]
             prev_p = df['Close'].iloc[-2]
@@ -54,6 +42,7 @@ def get_live_data_with_sentiment(ticker_list):
             target = target_prices.get(symbol, 0)
             dist_to_target = ((current_p - target) / target) * 100
             
+            # กำหนด Market Mood
             if current_rsi < 30: sentiment = "🔥 น่าช้อน (คนกลัวสุดขีด)"
             elif current_rsi < 45: sentiment = "📉 เริ่มถูก (รอจังหวะ)"
             elif current_rsi > 70: sentiment = "⚠️ ระวัง (คนโลภเกินไป)"
@@ -65,36 +54,26 @@ def get_live_data_with_sentiment(ticker_list):
                 "Change %": f"{change:.2f}%", 
                 "RSI (Sentiment)": round(current_rsi, 2), 
                 "Market Mood": sentiment, 
-                "Gap": f"{dist_to_target:.2f}%",
-                "Raw_Gap": dist_to_target,
-                "Raw_RSI": current_rsi
+                "Gap": f"{dist_to_target:.2f}%"
             })
         except:
             continue
     return pd.DataFrame(stock_data)
 
-df_live = get_live_data_with_sentiment(tickers)
-        
-# --- ส่วนแสดงผล ---
-st.title("🎯 กลยุทธ์: ตัวไหนน่าช้อน? (รวมอารมณ์ตลาด)")
+# 5. แสดงผลหน้าจอหลัก
 st.sidebar.metric("Cash Available", f"{st.session_state.base_cash:,} THB")
 
-# ตารางหลัก
-st.dataframe(df_live[["Ticker", "Price", "Change %", "RSI (Sentiment)", "Market Mood", "Gap"]], use_container_width=True)
+st.title("🎯 กลยุทธ์: ตัวไหนน่าช้อน? (รวมอารมณ์ตลาด)")
 
-# 💡 ระบบประเมินความเสี่ยงโดยจาร์วิส
-st.markdown("---")
-st.subheader("💡 Jarvis Analysis: จังหวะช้อนที่ดีที่สุด")
+df_live = get_live_data_with_sentiment(tickers)
 
-# เงื่อนไข: ราคาต้องต่ำกว่าเป้า (Gap < 0) และ RSI ต้องต่ำ (คนกลัว)
-perfect_buy = df_live[(df_live['Raw_Gap'] <= 0) & (df_live['Raw_RSI'] < 40)]
-
-if not perfect_buy.empty:
-    for _, row in perfect_buy.iterrows():
-        st.success(f"🔥 **{row['Ticker']}** จังหวะนี้แหละ! ราคาถูกกว่าเป้า และคนกำลังกลัว (RSI: {row['RSI (Sentiment)']})")
+if not df_live.empty:
+    # แสดงตารางสรุป
+    st.dataframe(df_live[["Ticker", "Price", "Change %", "RSI (Sentiment)", "Market Mood", "Gap"]], use_container_width=True)
+    
+    # ระบบแจ้งเตือนตัวที่น่าช้อนที่สุด
+    best_buy = df_live.sort_values(by="RSI (Sentiment)").iloc[0]
+    if best_buy['RSI (Sentiment)'] < 45:
+        st.success(f"🚀 **จาร์วิสแนะนำ:** {best_buy['Ticker']} น่าสนใจที่สุดในตอนนี้ (RSI: {best_buy['RSI (Sentiment)']})")
 else:
-    st.info("📢 ตอนนี้ 'ราคา' อาจจะถึงเป้า แต่ 'อารมณ์ตลาด' ยังไม่นิ่ง (คนยังไม่หยุดเทขาย) รอก่อนดีกว่าครับประธาน")
-
-# สรุปภาพรวม
-worst_stock = df_live.loc[df_live['Raw_RSI'].idxmin()]
-st.warning(f"🚨 หุ้นที่คนกลัวที่สุดตอนนี้คือ **{worst_stock['Ticker']}** (RSI: {worst_stock['RSI (Sentiment)']})")
+    st.warning("กำลังดึงข้อมูลจากตลาด... โปรดรอสักครู่")
