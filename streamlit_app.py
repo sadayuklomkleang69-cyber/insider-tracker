@@ -83,4 +83,20 @@ try:
         st.subheader("🔴 รายการขาย (ระวังตัว)")
         if not sells_df.empty:
             sells_df = sells_df.sort_index(ascending=False).head(15)
-            for _, row in sells_df.
+            for _, row in sells_df.iterrows():
+                price = row.get('Price', 0)
+                st.markdown(f"""
+                <div class="sell-card">
+                    <span class="ticker-name">{row['Symbol']}</span> | <span class="sell-text">SELL</span><br>
+                    {int(row['Shares']):,} หุ้น @ ${price:.2f}<br>
+                    <b>{row['Insider']}</b> ({row['Position']})
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.success("ปลอดภัย! ยังไม่มีปลาวาฬเทขายในกลุ่มนี้ครับ")
+
+except Exception as e:
+    st.error(f"ระบบกำลังปรับปรุง: {e}")
+
+if st.button('🔄 อัปเดตข้อมูล'):
+    st.rerun()
