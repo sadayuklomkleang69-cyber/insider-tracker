@@ -1,59 +1,61 @@
 import streamlit as st
 import pandas as pd
-import requests
+import yfinance as yf
 import plotly.express as px
 from datetime import datetime
 
 # 1. ตั้งค่าหน้าจอ
-st.set_page_config(page_title="Insider Tracker - All Market", layout="wide")
+st.set_page_config(page_title="Insider Tracker - Market Watch", layout="wide")
 
 # 2. ส่วนหัว
-st.title('🎯 ระบบจับตา "คนใน" (อัปเดตทั้งตลาด)')
-st.write(f"ข้อมูลล่าสุด ณ วันที่: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+st.title('🎯 ระบบจับตา "คนใน" (ฉบับอัปเดตเรียลไทม์)')
+st.write(f"ดึงข้อมูลตรงจากตลาดหลักทรัพย์ ณ วันที่: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
-# ใช้ API Key เดิมของท่านประธาน (ตัว I ใหญ่ที่แก้แล้ว)
-API_KEY = "OIrEUM6wlgFPzMjSC3aWXFkwGkVin2d2"
+# 3. รายชื่อหุ้นยักษ์ใหญ่ที่ต้องจับตา (ท่านประธานสามารถเพิ่มชื่อหุ้นได้ที่นี่)
+watchlist = ['NVDA', 'TSLA', 'AAPL', 'MSFT', 'AMZN', 'GOOGL', 'META', 'NFLX', 'AMD', 'INTC']
 
-@st.cache_data(ttl=300)
-def get_all_insider_data():
-    # ดึงข้อมูลการซื้อขายล่าสุด 100 รายการจากทั้งตลาด
-    url = f"https://financialmodelingprep.com/api/v4/insider-trading?limit=100&apikey={API_KEY}"
-    r = requests.get(url)
-    return pd.DataFrame(r.json())
+@st.cache_data(ttl=600)
+def get_market_insider():
+    all_data = []
+    for ticker in watchlist:
+        t = yf.Ticker(ticker)
+        df = t.insider_transactions
+        if df is not None and not df.empty:
+            # กรองเฉพาะรายการซื้อ (Purchase)
+            buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
+            if not buys.empty:
+                buys['Symbol'] = ticker
+                all_data.append(buys)
+    
+    if all_data:
+        return pd.concat(all_data)
+    return pd.DataFrame()
 
 try:
-    df = get_all_insider_data()
-    
-    # กรองเฉพาะรายการ "ซื้อ" (P-Purchase) จากทุกตัวในตลาด
-    df_buys = df[df['transactionType'] == 'P-Purchase'].copy()
-    df_buys['มูลค่า_USD'] = df_buys['securitiesTransacted'] * df_buys['price']
-    
-    # ดึง 15 อันดับแรกที่มีการซื้อมากที่สุดในตลาดตอนนี้
-    df_final = df_buys.sort_values(by='มูลค่า_USD', ascending=False).head(15)
+    with st.spinner('กำลังกวาดข้อมูลจากตลาด...'):
+        final_df = get_market_insider()
 
-    # 3. แสดงผลแบบภาพรวม
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        st.write("### 📊 สัดส่วนการซื้อรายหุ้น")
-        fig = px.pie(df_final, values='มูลค่า_USD', names='symbol', hole=0.7,
-                     color_discrete_sequence=px.colors.qualitative.Pastel)
-        fig.update_traces(textinfo='percent+label')
-        st.plotly_chart(fig, use_container_width=True)
+    if not final_df.empty:
+        # 4. แสดงผล
+        col1, col2 = st.columns([1, 2])
+        
+        with col1:
+            st.write("### 📊 สัดส่วนการเก็บหุ้นของคนใน")
+            fig = px.pie(final_df, values='Shares', names='Symbol', hole=0.7,
+                         color_discrete_sequence=px.colors.qualitative.Set3)
+            st.plotly_chart(fig, use_container_width=True)
 
-    with col2:
-        st.write("### 💎 15 อันดับรายการซื้อขนาดใหญ่ล่าสุด (ทั้งตลาด)")
-        # ปรับแต่งตารางให้ดูง่ายขึ้น
-        display_df = df_final[['symbol', 'reportingName', 'securitiesTransacted', 'price', 'มูลค่า_USD', 'transactionDate']]
-        display_df.columns = ['ชื่อหุ้น', 'ผู้ซื้อ', 'จำนวนหุ้น', 'ราคาที่ซื้อ', 'มูลค่ารวม (USD)', 'วันที่ซื้อ']
-        st.dataframe(display_df.style.format({"มูลค่ารวม (USD)": "{:,.2f}", "ราคาที่ซื้อ": "{:,.2f}"}), use_container_width=True)
-
-    # 4. ส่วนค้นหาเพิ่มเติม
-    st.markdown("---")
-    st.write("💡 *หมายเหตุ: ข้อมูลนี้เป็นการรวบรวมจากทุกบริษัทในตลาดหลักทรัพย์ที่มีการรายงานการซื้อขายของคนในล่าสุด*")
+        with col2:
+            st.write("### 💎 รายการซื้อล่าสุดจาก Watchlist")
+            display_df = final_df[['Date', 'Symbol', 'Insider', 'Shares', 'Price']]
+            display_df.columns = ['วันที่', 'หุ้น', 'ผู้ซื้อ', 'จำนวนหุ้น', 'ราคา']
+            st.dataframe(display_df.sort_values(by='วันที่', ascending=False), use_container_width=True)
+    else:
+        st.info("💡 ช่วงนี้ผู้บริหารใน Watchlist ยังไม่มีการซื้อเพิ่ม ระบบจะอัปเดตทันทีที่มีการเคลื่อนไหวครับ")
+        st.write("**หุ้นที่กำลังจับตา:** " + ", ".join(watchlist))
 
 except Exception as e:
-    st.error("กำลังรอการเชื่อมต่อข้อมูล... หากขึ้นแถบนี้เกิน 1 นาที โปรดเช็คการยืนยันอีเมลของ API อีกครั้งครับ")
+    st.error(f"เกิดข้อผิดพลาดในการดึงข้อมูล: {e}")
 
-if st.button('🔄 อัปเดตข้อมูลเดี๋ยวนี้'):
+if st.button('🔄 รีเฟรชข้อมูล'):
     st.rerun()
