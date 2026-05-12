@@ -11,7 +11,11 @@ if 'base_cash' not in st.session_state:
     st.session_state.base_cash = 4000
 if 'history_logs' not in st.session_state:
     st.session_state.history_logs = []
-
+# 2. ระบบจัดการเงินสด (ตั้งค่าเริ่มต้นให้เป็น 4,000 ทุกครั้งที่เปิดเว็บ)
+if 'base_cash' not in st.session_state:
+    st.session_state.base_cash = 4000
+if 'history_logs' not in st.session_state:
+    st.session_state.history_logs = []
 # 3. ข้อมูลหุ้นและเป้าหมายไม้ 1
 target_prices = {
     "NVDA": 210.00, "TSM": 380.00, "ASML": 1450.00, "PLTR": 130.00, 
