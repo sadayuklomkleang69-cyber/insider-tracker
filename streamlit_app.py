@@ -6,16 +6,12 @@ from datetime import datetime
 # 1. ตั้งค่าหน้ากระดาษ
 st.set_page_config(page_title="Chairman Nu Command Center V7.2", layout="wide")
 
-# 2. ระบบจัดการเงินสด & ประวัติ (Session State)
+# 2. ระบบจัดการเงินสด (บังคับให้เริ่มต้นที่ 4,000 เสมอ)
 if 'base_cash' not in st.session_state:
     st.session_state.base_cash = 4000
 if 'history_logs' not in st.session_state:
     st.session_state.history_logs = []
-# 2. ระบบจัดการเงินสด (ตั้งค่าเริ่มต้นให้เป็น 4,000 ทุกครั้งที่เปิดเว็บ)
-if 'base_cash' not in st.session_state:
-    st.session_state.base_cash = 4000
-if 'history_logs' not in st.session_state:
-    st.session_state.history_logs = []
+
 # 3. ข้อมูลหุ้นและเป้าหมายไม้ 1
 target_prices = {
     "NVDA": 210.00, "TSM": 380.00, "ASML": 1450.00, "PLTR": 130.00, 
@@ -53,7 +49,7 @@ st.sidebar.title("💎 Main Menu")
 st.sidebar.metric("Cash Available", f"{st.session_state.base_cash:,} THB")
 mode = st.sidebar.radio("เลือกโหมด:", ("🎯 กลยุทธ์ & การช้อนหุ้น", "💰 Cash Tracker", "📊 Whale Score", "🐳 Insider Live", "📰 News"))
 
-# ฟังก์ชันสรุปของจาร์วิส (ใช้ทุกหน้า)
+# ฟังก์ชันสรุปของจาร์วิส
 def jarvis_executive_summary():
     st.markdown("---")
     st.subheader("💡 Jarvis Executive Summary")
@@ -61,37 +57,29 @@ def jarvis_executive_summary():
     col1, col2 = st.columns(2)
     with col1:
         st.error(f"🚨 **Alert:** {worst['Ticker']} ลงแรงสุด ({worst['Change %']})")
-        st.info("⛽ **Market:** น้ำมันพุ่ง $107 กดดันหุ้น Tech ต่อเนื่อง")
     with col2:
         st.warning(f"💰 **Strategy:** กระสุนเหลือ {st.session_state.base_cash:,} THB")
-        st.success("✅ **Action:** อยู่เฉยๆ หรือช้อนเฉพาะตัวที่เข้าเขตป้ายเขียว")
+        st.success("✅ **Action:** อยู่เฉยๆ หรือช้อนตามป้ายเขียว")
 
 # --- การแสดงผลแต่ละโหมด ---
-
 if mode == "🎯 กลยุทธ์ & การช้อนหุ้น":
     st.title("🎯 กลยุทธ์: ตัวไหนน่าช้อน?")
     st.dataframe(df_live[["Ticker", "Price", "Change %", "Target", "Gap"]], use_container_width=True)
-    
-    st.subheader("🤖 Jarvis Analysis")
     buy_list = df_live[df_live['Raw_Gap'] <= 1.0].sort_values(by='Raw_Gap')
     if not buy_list.empty:
         st.success(f"🔥 โอกาสช้อน! มี {len(buy_list)} ตัวเข้าเป้า")
         for _, row in buy_list.iterrows():
             st.write(f"✅ **{row['Ticker']}** ห่างเป้าแค่ {row['Gap']} (ช้อนได้เลย!)")
-    else:
-        st.warning("⏳ ยังไม่ต้องรีบช้อน ราคายังสูงกว่าเป้าหมาย")
     jarvis_executive_summary()
 
 elif mode == "💰 Cash Tracker":
     st.title("💰 บริหารเงินสด & บันทึกการเติมรายตัว")
-    # ส่วนเติมเงิน
     with st.expander("➕ เติมเงินเข้าพอร์ต"):
         amt = st.number_input("เงินที่โอนเข้า:", min_value=0, step=500)
         if st.button("ยืนยัน"):
             st.session_state.base_cash += amt
             st.rerun()
     
-    # ส่วนบันทึกการซื้อ
     st.subheader("🛒 บันทึกการช้อนหุ้นรายตัว")
     c1, c2 = st.columns(2)
     with c1: stock = st.selectbox("เลือกหุ้น:", tickers)
@@ -100,26 +88,24 @@ elif mode == "💰 Cash Tracker":
     if st.button(f"🚀 บันทึกการช้อน {stock}"):
         if st.session_state.base_cash >= buy_amt:
             st.session_state.base_cash -= buy_amt
-            st.session_state.history_logs.append({"วันที่": datetime.now().strftime("%H:%M"), "หุ้น": stock, "จำนวนเงิน": buy_amt})
+            st.session_state.history_logs.append({"เวลา": datetime.now().strftime("%H:%M"), "หุ้น": stock, "เงิน": buy_amt})
             st.rerun()
     
     if st.session_state.history_logs:
         st.table(pd.DataFrame(st.session_state.history_logs))
 
 elif mode == "📊 Whale Score":
-    st.title("📊 Whale Sentiment: แรงซื้อสถาบัน")
+    st.title("📊 Whale Sentiment")
     st.metric("Whale Score", "35%", delta="-5%")
-    st.write("👉 สถาบันชะลอการซื้อหุ้น Tech และหนีไปถือเงินสด")
     jarvis_executive_summary()
 
 elif mode == "🐳 Insider Live":
-    st.title("🐳 Insider Live: รอยเท้าเจ้ามือ")
+    st.title("🐳 Insider Live")
     st.success("🚀 **RKLB:** ผู้บริหารยังถือเหนียวแน่น")
-    st.error("⚠️ **MU:** พบแรงเทขายรุนแรงจากสถาบัน (-7.34%)")
+    st.error("⚠️ **MU:** พบแรงเทขายรุนแรงจากสถาบัน")
     jarvis_executive_summary()
 
 elif mode == "📰 News":
     st.title("📰 News Intelligence")
-    st.error("📌 **Oil Crisis:** ราคา Brent $107 กดดันตลาด")
-    st.info("📌 **NVDA:** จับตางบสัปดาห์หน้า ตัวตัดสินทิศทางพอร์ต")
+    st.error("📌 **Oil Crisis:** ราคา Brent $107")
     jarvis_executive_summary()
