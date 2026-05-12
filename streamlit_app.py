@@ -102,4 +102,26 @@ try:
             st.subheader("🎯 ตารางวิเคราะห์ Upside (เป้าหมายกำไร)")
             if live_p > 0:
                 targets = [live_p * 1.2, live_p * 1.5, live_p * 2.0]
-                supports = [live_p * 0.95, live_p * 0.9
+                supports = [live_p * 0.95, live_p * 0.90, live_p * 0.85]
+                
+                res_data = []
+                for sup in supports:
+                    row = {"จุดช้อน ($)": f"{sup:.2f}"}
+                    for i, t in enumerate(targets):
+                        row[f"เป้า {i+1} (${t:.2f})"] = f"+{((t-sup)/sup)*100:.1f}%"
+                    res_data.append(row)
+                st.table(pd.DataFrame(res_data))
+
+    elif menu == "📡 ระบบ LINE":
+        st.header("📡 ศูนย์ควบคุม LINE")
+        st.write(f"**สถานะ:** เชื่อมต่อกับ User ID: `{USER_ID}`")
+        if st.button("🚀 ส่งข้อความทดสอบ"):
+            res = send_line_message("จาร์วิสรายงานตัว! ระบบกลับมาสมบูรณ์ 100% แล้วครับท่านประธาน!")
+            if res and res.status_code == 200: 
+                st.success("ส่งเรียบร้อย!")
+                st.balloons()
+            else: 
+                st.error("ส่งไม่สำเร็จ")
+
+except Exception as e:
+    st.error(f"ระบบขัดข้อง: {e}")
