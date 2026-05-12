@@ -25,10 +25,10 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. HEADER ---
-st.title('🎯 ระบบจับตา "คนใน" (ไม่ต้องใช้คีย์)')
-st.write(f"ดึงข้อมูลตรงจาก Yahoo Finance | อัปเดตล่าสุด: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+st.title('🎯 ระบบจับตา "คนใน" (ฉบับเสถียรที่สุด)')
+st.write(f"อัปเดตล่าสุด: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
-# --- 3. WATCHLIST ---
+# --- 3. WATCHLIST (หุ้นเป้าหมายของท่านประธาน) ---
 watchlist = ['NVDA', 'TSM', 'MSFT', 'PLTR', 'UPST', 'SOFI', 'GOOGL', 'AMD', 'TSLA']
 
 @st.cache_data(ttl=600)
@@ -39,12 +39,12 @@ def get_yfinance_insider():
             t = yf.Ticker(ticker)
             df = t.insider_transactions
             if df is not None and not df.empty:
+                # กรองเฉพาะรายการซื้อ (Purchase)
                 buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
                 if not buys.empty:
                     buys['Symbol'] = ticker
-                    # แก้ไขเรื่องวันที่ให้เสถียรขึ้น
-                    if 'Date' not in buys.columns:
-                        buys = buys.reset_index()
+                    # บังคับให้ Index กลายเป็นคอลัมน์ เพื่อดึงวันที่ออกมาให้ได้
+                    buys = buys.reset_index()
                     all_data.append(buys)
         except:
             continue
@@ -67,20 +67,9 @@ try:
             st.plotly_chart(fig, use_container_width=True)
 
         with col_right:
-            st.subheader("💎 รายการซื้อที่น่าสนใจ")
-            # เรียงข้อมูลและจัดการชื่อคอลัมน์ให้ตรง
-            final_df = final_df.sort_index(ascending=False).head(10)
+            st.subheader("💎 รายการซื้อล่าสุด (10 อันดับ)")
+            # เรียงจากใหม่ไปเก่า
+            final_df = final_df.sort_values(by=final_df.columns[0], ascending=False).head(10)
             
             for _, row in final_df.iterrows():
-                # ตรวจสอบชื่อคอลัมน์วันที่
-                date_val = row.get('Date', 'N/A')
-                date_str = date_val.strftime('%Y-%m-%d') if hasattr(date_val, 'strftime') else str(date_val)
-                
-                st.markdown(f"""
-                <div class="buy-card">
-                    <table style="width:100%;">
-                        <tr>
-                            <td style="width:20%;"><span class="ticker-name">{row['Symbol']}</span><br><small>{date_str}</small></td>
-                            <td style="width:30%; text-align:center;">จำนวน: {int(row['Shares']):,} หุ้น</td>
-                            <td style="width:20%; text-align:center;"><span class="price-text">${row['Price']:.2f}</span></td>
-                            <td style="width:30%; text-align:right;"><b>{row['Insider']}</b><br><small>{row['
+                # ด
