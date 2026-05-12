@@ -4,8 +4,8 @@ import yfinance as yf
 import requests
 from datetime import datetime
 
-# --- 1. CONFIGURATION & DARK UI (ธีมที่ท่านประธานชอบ) ---
-st.set_page_config(page_title="Chairman Nu Command Center V5.1", layout="wide")
+# --- 1. CONFIGURATION & DARK UI ---
+st.set_page_config(page_title="Chairman Nu Command Center V5.2", layout="wide")
 
 st.markdown("""
     <style>
@@ -87,7 +87,7 @@ try:
         selected = st.selectbox("เลือกหุ้น:", watchlist, index=watchlist.index('UPST'))
         live_p = current_prices.get(selected, 0)
         
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns([1, 1.2])
         with col1:
             st.markdown(f'<div class="metric-box">ราคาปัจจุบัน: <b>${live_p:.2f}</b></div><br>', unsafe_allow_html=True)
             d_shares = st.number_input("หุ้นใน Dime", value=0.0)
@@ -98,13 +98,8 @@ try:
             final_avg = ((d_shares * d_avg) + top_up) / (d_shares + new_sh) if (d_shares + new_sh) > 0 else 0
             st.metric("ราคาเฉลี่ยใหม่", f"${final_avg:.2f}", f"{final_avg - d_avg:.2f}")
 
-    elif menu == "📡 ระบบ LINE":
-        st.header("📡 ศูนย์ควบคุม LINE")
-        st.write(f"**สถานะ:** เชื่อมต่อกับ User ID: `{USER_ID}`")
-        if st.button("🚀 ส่งข้อความทดสอบ"):
-            res = send_line_message("จาร์วิสรายงานตัว! ระบบกลับมาสมบูรณ์ 100% แล้วครับท่านประธาน!")
-            if res and res.status_code == 200: st.success("ส่งเรียบร้อย!"); st.balloons()
-            else: st.error("ส่งไม่สำเร็จ")
-
-except Exception as e:
-    st.error(f"ระบบขัดข้อง: {e}")
+        with col2:
+            st.subheader("🎯 ตารางวิเคราะห์ Upside (เป้าหมายกำไร)")
+            if live_p > 0:
+                targets = [live_p * 1.2, live_p * 1.5, live_p * 2.0]
+                supports = [live_p * 0.95, live_p * 0.9
