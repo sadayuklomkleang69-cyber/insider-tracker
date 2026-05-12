@@ -5,7 +5,7 @@ import requests
 from datetime import datetime
 
 # --- 1. CONFIGURATION & STYLE ---
-st.set_page_config(page_title="Chairman Nu Command Center V6.3", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V6.5", layout="wide")
 
 st.markdown("""
     <style>
@@ -44,14 +44,8 @@ def fetch_all_data():
 
 # --- 3. SIDEBAR ---
 with st.sidebar:
-    st.title("🎛️ Command Center V6.3")
-    menu = st.radio("เลือกโหมด:", [
-        "📊 Whale Sentiment Score", 
-        "🐳 Insider Live Feed", 
-        "🧮 ตารางคำนวณ Dime", 
-        "📝 บันทึกการลงทุน", 
-        "📡 ระบบ LINE"
-    ])
+    st.title("🎛️ Command Center V6.5")
+    menu = st.radio("เลือกโหมด:", ["📊 Whale Sentiment Score", "🐳 Insider Live Feed", "🧮 ตารางคำนวณ Dime", "📝 บันทึกการลงทุน", "📡 ระบบ LINE"])
     st.markdown("---")
     st.info(f"อัปเดตล่าสุด: {datetime.now().strftime('%H:%M:%S')}")
 
@@ -60,36 +54,38 @@ try:
 
     # --- PAGE 1: SENTIMENT SCORE ---
     if menu == "📊 Whale Sentiment Score":
-        st.title("📊 Whale Confidence Score")
-        st.write("วิเคราะห์ความเชื่อมั่นปลาวาฬจากปริมาณการซื้อและตำแหน่งผู้บริหาร")
+        st.title("📊 Whale Confidence Score (Dashboard)")
         scores = []
         for ticker in watchlist:
             if not full_df.empty:
                 ticker_data = full_df[full_df['Symbol'] == ticker]
-                buys = ticker_data[ticker_data['Text'].str.contains('Purchase', case=False, na=False)]
+                buys = ticker_data[ticker_data['Text'].str.contains('Purchase|Exercise', case=False, na=False)]
                 if not buys.empty:
-                    base = 1
-                    vol = min(5, int(buys['Shares'].sum() / 1000)) 
-                    role = 4 if any(r in str(buys['Position']).upper() for r in ['CEO', 'DIRECTOR', 'OFFICER']) else 0
-                    f_score = min(10, base + vol + role)
+                    base = 2 # มีรายการซื้อให้พื้นฐาน 2 คะแนน
+                    vol_score = min(4, int(buys['Shares'].sum() / 500)) 
+                    role_bonus = 4 if any(r in str(buys['Position']).upper() for r in ['CEO', 'DIRECTOR', 'OFFICER']) else 0
+                    f_score = min(10, base + vol_score + role_bonus)
                     scores.append({"หุ้น": ticker, "คะแนน (1-10)": f_score, "สถานะ": "🔥 แรงมาก" if f_score >= 7 else "✅ เริ่มขยับ"})
-                else: scores.append({"หุ้น": ticker, "คะแนน (1-10)": 0, "สถานะ": "💤 นิ่ง"})
+                else: 
+                    scores.append({"หุ้น": ticker, "คะแนน (1-10)": 0, "สถานะ": "💤 นิ่ง"})
         st.dataframe(pd.DataFrame(scores).sort_values("คะแนน (1-10)", ascending=False), use_container_width=True)
 
     # --- PAGE 2: LIVE FEED ---
     elif menu == "🐳 Insider Live Feed":
-        st.title("🐳 Insider Transaction Feed")
+        st.title("🐳 Insider Transaction Feed (Real-time)")
         if not full_df.empty:
-            latest = full_df.sort_values('Date', ascending=False).head(40)
+            latest = full_df.sort_values('Date', ascending=False)
             c1, c2 = st.columns(2)
             with c1:
-                st.subheader("🟢 รายการช้อนซื้อ")
-                buys_list = latest[latest['Text'].str.contains('Purchase', case=False, na=False)]
-                for _, row in buys_list.iterrows():
-                    st.markdown(f'<div class="whale-card"><h3>{row["Symbol"]} | ${current_prices.get(row["Symbol"], 0):.2f}</h3><p><b>คนซื้อ:</b> {row["Insider"]} ({row["Position"]})</p><p><b>จำนวน:</b> {int(row["Shares"]):,} หุ้น | {row["Date"].strftime("%d/%m/%Y")}</p></div>', unsafe_allow_html=True)
+                st.subheader("🟢 รายการช้อนซื้อ (ล่าสุด)")
+                buys_list = latest[latest['Text'].str.contains('Purchase|Exercise', case=False, na=False)].head(25)
+                if not buys_list.empty:
+                    for _, row in buys_list.iterrows():
+                        st.markdown(f'<div class="whale-card"><h3>{row["Symbol"]} | ${current_prices.get(row["Symbol"], 0):.2f}</h3><p><b>คนซื้อ:</b> {row["Insider"]} ({row["Position"]})</p><p><b>จำนวน:</b> {int(row["Shares"]):,} หุ้น | {row["Date"].strftime("%d/%m/%Y")}</p></div>', unsafe_allow_html=True)
+                else: st.info("ช่วงนี้ยังไม่มีรายงานฝั่งซื้อใน Watchlist ครับ")
             with c2:
-                st.subheader("🔴 รายการขาย")
-                sells_list = latest[latest['Text'].str.contains('Sale', case=False, na=False)]
+                st.subheader("🔴 รายการขาย (ล่าสุด)")
+                sells_list = latest[latest['Text'].str.contains('Sale', case=False, na=False)].head(25)
                 for _, row in sells_list.iterrows():
                     st.markdown(f'<div class="whale-card sell-card"><h3>{row["Symbol"]} | ${current_prices.get(row["Symbol"], 0):.2f}</h3><p><b>คนขาย:</b> {row["Insider"]}</p><p><b>จำนวน:</b> {int(row["Shares"]):,} หุ้น | {row["Date"].strftime("%d/%m/%Y")}</p></div>', unsafe_allow_html=True)
         else: st.warning("ไม่พบข้อมูลธุรกรรม")
