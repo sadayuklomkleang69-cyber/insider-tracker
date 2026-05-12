@@ -43,9 +43,13 @@ def get_insider_combined():
             df = t.insider_transactions
             if df is not None and not df.empty:
                 df['Symbol'] = ticker
-                # แยกซื้อและขาย
+                # ปรับชื่อคอลัมน์ให้เป็นตัวใหญ่ตัวแรกทั้งหมดเพื่อป้องกัน Error
+                df.columns = [str(c).capitalize() for c in df.columns]
+                
+                # แยกรายการซื้อและขาย
                 buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
                 sells = df[df['Text'].str.contains('Sale', case=False, na=False)].copy()
+                
                 if not buys.empty: all_buys.append(buys)
                 if not sells.empty: all_sells.append(sells)
         except: continue
@@ -62,12 +66,13 @@ try:
     with col_left:
         st.subheader("🟢 รายการซื้อ (สะสมของ)")
         if not buys_df.empty:
-            buys_df = buys_df.sort_index(ascending=False).head(10)
+            buys_df = buys_df.sort_index(ascending=False).head(15)
             for _, row in buys_df.iterrows():
+                price = row.get('Price', 0)
                 st.markdown(f"""
                 <div class="buy-card">
                     <span class="ticker-name">{row['Symbol']}</span> | <span class="buy-text">BUY</span><br>
-                    {int(row['Shares']):,} หุ้น @ ${row['Price']:.2f}<br>
+                    {int(row['Shares']):,} หุ้น @ ${price:.2f}<br>
                     <b>{row['Insider']}</b> ({row['Position']})
                 </div>
                 """, unsafe_allow_html=True)
@@ -77,20 +82,5 @@ try:
     with col_right:
         st.subheader("🔴 รายการขาย (ระวังตัว)")
         if not sells_df.empty:
-            sells_df = sells_df.sort_index(ascending=False).head(10)
-            for _, row in sells_df.iterrows():
-                st.markdown(f"""
-                <div class="sell-card">
-                    <span class="ticker-name">{row['Symbol']}</span> | <span class="sell-text">SELL</span><br>
-                    {int(row['Shares']):,} หุ้น @ ${row['Price']:.2f}<br>
-                    <b>{row['Insider']}</b> ({row['Position']})
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.success("ปลอดภัย! ยังไม่มีปลาวาฬเทขายในกลุ่มนี้ครับ")
-
-except Exception as e:
-    st.error(f"ระบบกำลังปรับปรุง: {e}")
-
-if st.button('🔄 อัปเดตข้อมูล'):
-    st.rerun()
+            sells_df = sells_df.sort_index(ascending=False).head(15)
+            for _, row in sells_df.
