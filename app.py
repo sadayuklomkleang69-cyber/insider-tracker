@@ -65,7 +65,6 @@ def get_data(ticker_list):
 st.sidebar.title("🧨 Ammunition Depot")
 st.sidebar.metric("กระสุนคงเหลือ (Cash)", f"{st.session_state.cash_balance:,.2f} THB")
 
-# โหมดเติมกระสุน
 with st.sidebar.expander("📥 เติมกระสุน (Top-up)"):
     add_amt = st.number_input("จำนวนเงินที่เติม", min_value=0.0, step=500.0)
     if st.button("ยืนยันการเติมเงิน"):
@@ -73,7 +72,6 @@ with st.sidebar.expander("📥 เติมกระสุน (Top-up)"):
         st.success(f"เติมกระสุนเรียบร้อย! +{add_amt}")
         st.rerun()
 
-# โหมดยิงกระสุน (ช้อนหุ้น)
 with st.sidebar.expander("🎯 คำนวณวิถีกระสุน (Buy)"):
     selected_stock = st.selectbox("เลือกเป้าหมาย", tickers)
     buy_price = st.number_input("ราคาที่ช้อน ($)", min_value=0.0)
@@ -96,12 +94,33 @@ with st.sidebar.expander("🎯 คำนวณวิถีกระสุน (Bu
 # --- MAIN CONTENT ---
 st.title("🎯 Chairman Nu Command Center V8.1")
 
-# ส่วนแสดงผลของเก่า: Market Scan
 data = get_data(tickers)
 if not data.empty:
     st.subheader("🚀 Market Opportunity Scan")
     st.dataframe(data.sort_values("RSI"), use_container_width=True)
     
-    # Jarvis Insight
     best_deal = data.sort_values("RSI").iloc[0]
-    if best_deal['R
+    if best_deal['RSI'] < 40:
+        st.success(f"💡 **จาร์วิสวิเคราะห์:** หุ้น **{best_deal['Ticker']}** อยู่ในจุดที่น่าสนใจที่สุด (RSI: {best_deal['RSI']})")
+
+st.markdown("---")
+
+col1, col2 = st.columns([2, 1])
+with col1:
+    st.subheader("📜 Battle Log (ประวัติการช้อน)")
+    if st.session_state.battle_log:
+        log_df = pd.DataFrame(st.session_state.battle_log)
+        st.table(log_df.iloc[::-1])
+    else:
+        st.info("ยังไม่มีการบันทึกการรบในรอบนี้")
+
+with col2:
+    st.subheader("📊 Ammo Allocation")
+    if st.session_state.battle_log:
+        log_df = pd.DataFrame(st.session_state.battle_log)
+        summary = log_df.groupby("Ticker")["Spent"].sum()
+        st.bar_chart(summary)
+    else:
+        st.write("รอข้อมูลการช้อน...")
+
+st.caption("© 2026 Chairman Nu Intelligence System • Ammo System Active")
