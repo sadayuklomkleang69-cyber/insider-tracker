@@ -5,7 +5,7 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V8.2", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V8.3", layout="wide")
 st_autorefresh(interval=300000, key="datarefresh")
 
 # 2. Initializing Ammo System
@@ -14,14 +14,23 @@ if 'cash_balance' not in st.session_state:
 if 'battle_log' not in st.session_state:
     st.session_state.battle_log = []
 
-# 3. Target Data (เพิ่ม NBIS และหุ้นใน Trending ของประธาน)
+# 3. Target Data (ถอด TSLA, AAPL, SOFI, UPST ออกแล้วตามสั่ง)
 target_prices = {
-    "NBIS": 170.0,  # เพิ่มตัวนี้ตามสั่งครับประธาน
-    "MU": 730.0, "NVDA": 210.0, "TSM": 380.0, "ASML": 1450.0, 
-    "PLTR": 130.0, "GOOGL": 380.0, "AVGO": 400.0, "MSFT": 400.0, 
-    "AMZN": 260.0, "ARM": 200.0, "AMD": 430.0, "RKLB": 110.0,
-    "META": 580.0, "AAPL": 220.0, "TSLA": 250.0, "SOFI": 10.0, 
-    "UPST": 30.0, "SPY": 530.0
+    "NBIS": 170.0,
+    "MU": 730.0, 
+    "NVDA": 210.0, 
+    "TSM": 380.0, 
+    "ASML": 1450.0, 
+    "PLTR": 130.0, 
+    "GOOGL": 380.0, 
+    "AVGO": 400.0, 
+    "MSFT": 400.0, 
+    "AMZN": 260.0, 
+    "ARM": 200.0, 
+    "AMD": 430.0, 
+    "RKLB": 110.0,
+    "META": 580.0, 
+    "SPY": 530.0
 }
 tickers = list(target_prices.keys())
 
@@ -29,7 +38,7 @@ tickers = list(target_prices.keys())
 def calculate_rsi_manual(series, period=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    loss = ( - delta.where(delta < 0, 0)).rolling(window=period).mean()
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
@@ -56,9 +65,12 @@ def get_data(ticker_list):
             else: mood = "⚖️ ปกติ"
 
             stock_data.append({
-                "Ticker": symbol, "Price": round(current_p, 2),
-                "Change %": f"{change:+.2f}%", "RSI": round(current_rsi, 2),
-                "Market Mood": mood, "Gap to Target %": f"{gap:+.2f}%"
+                "Ticker": symbol, 
+                "Price": round(current_p, 2),
+                "Change %": f"{change:+.2f}%", 
+                "RSI": round(current_rsi, 2),
+                "Market Mood": mood, 
+                "Gap to Target %": f"{gap:+.2f}%"
             })
         except: continue
     return pd.DataFrame(stock_data)
@@ -93,8 +105,8 @@ with st.sidebar.expander("🎯 คำนวณวิถีกระสุน (Bu
             st.error("กระสุนไม่พอ!")
 
 # --- MAIN CONTENT ---
-st.title("🎯 Chairman Nu Command Center V8.2")
-st.write(f"กำลังติดตามหุ้นทั้งหมด {len(tickers)} ตัว (รวม NBIS)")
+st.title("🎯 Chairman Nu Command Center V8.3")
+st.write(f"กำลังติดตามหุ้นเป้าหมาย {len(tickers)} ตัว")
 
 data = get_data(tickers)
 if not data.empty:
@@ -103,7 +115,7 @@ if not data.empty:
     
     best_deal = data.sort_values("RSI").iloc[0]
     if best_deal['RSI'] < 40:
-        st.success(f"💡 **จาร์วิสวิเคราะห์:** หุ้น **{best_deal['Ticker']}** น่าสนใจที่สุด (RSI: {best_deal['RSI']})")
+        st.success(f"💡 **จาร์วิสวิเคราะห์:** หุ้น **{best_deal['Ticker']}** อยู่ในจุดที่น่าสนใจที่สุดในลิสต์ (RSI: {best_deal['RSI']})")
 
 st.markdown("---")
 col1, col2 = st.columns([2, 1])
@@ -120,4 +132,4 @@ with col2:
         summary = pd.DataFrame(st.session_state.battle_log).groupby("Ticker")["Spent"].sum()
         st.bar_chart(summary)
 
-st.caption("© 2026 Chairman Nu Intelligence System • NBIS Synced")
+st.caption("© 2026 Chairman Nu Intelligence System • Targeted Tracking Active")
