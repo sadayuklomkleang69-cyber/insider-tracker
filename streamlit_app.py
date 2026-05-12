@@ -47,4 +47,52 @@ with st.sidebar:
 try:
     full_df, current_prices = fetch_all_data()
 
-    if menu == "🐳 จับตาป
+    if menu == "🐳 จับตาปลาวาฬ (ทุกรายการ)":
+        st.header("🐳 รายงานความเคลื่อนไหวคนใน (Real-time)")
+        if not full_df.empty:
+            buys = full_df[~full_df['Text'].str.contains('Sale', case=False, na=False)]
+            sells = full_df[full_df['Text'].str.contains('Sale', case=False, na=False)]
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                st.subheader("🟢 รายการรับหุ้น/ซื้อเพิ่ม")
+                for _, row in buys.sort_values('Date', ascending=False).head(15).iterrows():
+                    st.success(f"**{row['Symbol']}** | {row['Date'].strftime('%d/%m/%y')}\n\n**{row['Insider']}** ({row['Position']})\n\n{int(row['Shares']):,} หุ้น | ประเภท: {row['Text']}")
+            
+            with col2:
+                st.subheader("🔴 รายการขาย/โอนออก")
+                for _, row in sells.sort_values('Date', ascending=False).head(15).iterrows():
+                    st.error(f"**{row['Symbol']}** | {row['Date'].strftime('%d/%m/%y')}\n\n**{row['Insider']}** ({row['Position']})\n\n{int(row['Shares']):,} หุ้น | ประเภท: {row['Text']}")
+        else:
+            st.warning("กำลังดึงข้อมูล... หากยังไม่ขึ้นกรุณารอสักครู่ครับ")
+
+    elif menu == "🧮 ตารางคำนวณ":
+        st.header("🧮 ตารางคำนวณอัจฉริยะ (Sync Dime)")
+        selected = st.selectbox("เลือกหุ้น:", watchlist, index=watchlist.index('UPST'))
+        live_p = current_prices.get(selected, 0)
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.write(f"ราคาตลาดปัจจุบัน: **${live_p:.2f}**")
+            dime_shares = st.number_input("จำนวนหุ้นใน Dime", value=0.0)
+            dime_avg = st.number_input("ต้นทุนเดิม (USD)", value=live_p)
+            top_up = st.number_input("เงินที่ลงทุนเพิ่ม (USD)", value=1000.0)
+            
+            new_sh = top_up / live_p if live_p > 0 else 0
+            final_avg = ((dime_shares * dime_avg) + top_up) / (dime_shares + new_sh) if (dime_shares + new_sh) > 0 else 0
+            st.metric("ราคาเฉลี่ยใหม่", f"${final_avg:.2f}", f"{final_avg - dime_avg:.2f}")
+
+    elif menu == "📡 ระบบ LINE":
+        st.header("📡 ศูนย์ควบคุม LINE")
+        st.write(f"**สถานะ:** เชื่อมต่อกับ User ID: `{USER_ID}`")
+        test_msg = st.text_input("พิมพ์ข้อความทดสอบ:", "จาร์วิสรายงานตัวครับท่านประธานนุ!")
+        if st.button("🚀 ส่งข้อความทดสอบ"):
+            res = send_line_message(test_msg)
+            if res and res.status_code == 200:
+                st.success("ส่งเรียบร้อย! ลองเช็คในมือถือท่านประธานดูครับ")
+                st.balloons()
+            else:
+                st.error("ส่งไม่สำเร็จ ตรวจสอบสถานะอีกครั้งครับ")
+
+except Exception as e:
+    st.error(f"ระบบขัดข้อง: {e}")
