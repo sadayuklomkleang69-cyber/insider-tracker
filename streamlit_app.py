@@ -37,15 +37,13 @@ def get_live_data_with_sentiment(ticker_list):
             
             current_p = df['Close'].iloc[-1]
             prev_p = df['Close'].iloc[-2]
-            change = ((current_p - prev_p) / prev_p) * 100
-            target = target_prices.get(symbol, 0)
-            dist_to_target = ((current_p - target) / target) * 100
-            
-            # วิเคราะห์อารมณ์
-         try:
+            stock_data = []
+    for symbol in ticker_list:
+        try:
             t = yf.Ticker(symbol)
             df = t.history(period="1mo")
-            
+            if df.empty: continue
+
             # คำนวณ RSI
             rsi_series = ta.rsi(df['Close'], length=14)
             current_rsi = rsi_series.iloc[-1] if rsi_series is not None and not rsi_series.empty else 50
@@ -56,7 +54,6 @@ def get_live_data_with_sentiment(ticker_list):
             target = target_prices.get(symbol, 0)
             dist_to_target = ((current_p - target) / target) * 100
             
-            # กำหนด Sentiment และ Mood
             if current_rsi < 30: sentiment = "🔥 น่าช้อน (คนกลัวสุดขีด)"
             elif current_rsi < 45: sentiment = "📉 เริ่มถูก (รอจังหวะ)"
             elif current_rsi > 70: sentiment = "⚠️ ระวัง (คนโลภเกินไป)"
@@ -68,15 +65,16 @@ def get_live_data_with_sentiment(ticker_list):
                 "Change %": f"{change:.2f}%", 
                 "RSI (Sentiment)": round(current_rsi, 2), 
                 "Market Mood": sentiment, 
-                "Gap": f"{dist_to_target:.2f}%", 
-                "Raw_Gap": dist_to_target, 
+                "Gap": f"{dist_to_target:.2f}%",
+                "Raw_Gap": dist_to_target,
                 "Raw_RSI": current_rsi
             })
-        except Exception as e:
+        except:
             continue
+    return pd.DataFrame(stock_data)
 
 df_live = get_live_data_with_sentiment(tickers)
-
+        
 # --- ส่วนแสดงผล ---
 st.title("🎯 กลยุทธ์: ตัวไหนน่าช้อน? (รวมอารมณ์ตลาด)")
 st.sidebar.metric("Cash Available", f"{st.session_state.base_cash:,} THB")
