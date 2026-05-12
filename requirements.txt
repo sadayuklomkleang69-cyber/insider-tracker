@@ -1,5 +1,5 @@
 streamlit
 pandas
 yfinance
-stremlit-autorefresh
+streamlit-autorefresh
 pandas-ts
