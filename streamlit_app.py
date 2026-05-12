@@ -37,8 +37,9 @@ def get_insider_combined():
     for ticker in watchlist:
         try:
             t = yf.Ticker(ticker)
-            # ดึงราคาตลาดปัจจุบันมาสำรองไว้ (หัวใจสำคัญ)
-            current_p = t.fast_info.get('last_price', 0)
+            # ดึงราคาสำรองแบบละเอียด (พยายาม 3 ช่องทาง)
+            info = t.info
+            current_p = info.get('regularMarketPrice') or info.get('currentPrice') or info.get('previousClose') or 0
             
             df = t.insider_transactions
             if df is not None and not df.empty:
@@ -57,7 +58,7 @@ def get_insider_combined():
 
 # --- 4. EXECUTION ---
 try:
-    with st.spinner('จาร์วิสกำลังสแกนหาการเคลื่อนไหว...'):
+    with st.spinner('จาร์วิสกำลังกระชากข้อมูลราคามาให้ท่านประธาน...'):
         buys_df, sells_df = get_insider_combined()
 
     col_left, col_right = st.columns(2)
@@ -67,8 +68,8 @@ try:
         if not buys_df.empty:
             buys_df = buys_df.sort_index(ascending=False).head(15)
             for _, row in buys_df.iterrows():
-                # ถ้า Price เป็น 0 ให้ใช้ Backup_price แทน
                 p = row.get('Price', 0)
+                # ถ้า Price เป็น 0 หรือ NaN ให้ใช้ Backup_price
                 if p == 0 or pd.isna(p): p = row.get('Backup_price', 0)
                 
                 st.markdown(f"""
