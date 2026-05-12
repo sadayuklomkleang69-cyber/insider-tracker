@@ -19,7 +19,7 @@ st.markdown("""
         border-left: 6px solid #E74C3C; margin-bottom: 10px;
     }
     .ticker-name { color: #F1C40F; font-size: 22px; font-weight: bold; }
-    .date-text { color: #888888; font-size: 14px; }
+    .date-text { color: #888888; font-size: 15px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -42,11 +42,18 @@ def get_insider_combined():
             
             df = t.insider_transactions
             if df is not None and not df.empty:
-                df = df.reset_index() # กระชากวันที่ออกมาเป็นคอลัมน์
+                # ตรวจสอบว่ามีคอลัมน์วันที่หรือไม่ ถ้าไม่มีใช้ Index
+                if 'Start Date' in df.columns:
+                    df['Transaction_Date'] = pd.to_datetime(df['Start Date'])
+                elif 'Date' in df.columns:
+                    df['Transaction_Date'] = pd.to_datetime(df['Date'])
+                else:
+                    df['Transaction_Date'] = pd.to_datetime(df.index)
+                
                 df['Symbol'] = ticker
                 df['Backup_Price'] = current_p
-                df.columns = [str(c).capitalize() for c in df.columns]
                 
+                # กรองซื้อ/ขาย
                 buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
                 sells = df[df['Text'].str.contains('Sale', case=False, na=False)].copy()
                 
@@ -58,7 +65,7 @@ def get_insider_combined():
 
 # --- 4. EXECUTION ---
 try:
-    with st.spinner('จาร์วิสกำลังกระชากข้อมูลมาให้ท่านประธาน...'):
+    with st.spinner('จาร์วิสกำลังตรวจสอบปฏิทินปลาวาฬ...'):
         buys_df, sells_df = get_insider_combined()
 
     col_left, col_right = st.columns(2)
@@ -66,19 +73,17 @@ try:
     with col_left:
         st.subheader("🟢 รายการซื้อ (สะสมของ)")
         if not buys_df.empty:
-            buys_df = buys_df.sort_index(ascending=False).head(15)
+            buys_df = buys_df.sort_values(by='Transaction_Date', ascending=False).head(15)
             for _, row in buys_df.iterrows():
                 p = row.get('Price', 0)
-                if p == 0 or pd.isna(p): p = row.get('Backup_price', 0)
+                if p == 0 or pd.isna(p): p = row.get('Backup_Price', 0)
                 
-                # ฟอร์แมตวันที่ให้สวยงาม
-                raw_date = row.iloc[0]
-                date_str = raw_date.strftime('%d/%m/%Y') if hasattr(raw_date, 'strftime') else str(raw_date)[:10]
+                d_str = row['Transaction_Date'].strftime('%d/%m/%Y')
 
                 st.markdown(f"""
                 <div class="buy-card">
                     <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#2ECC71">BUY</span><br>
-                    <span class="date-text">📅 วันที่ทำรายการ: {date_str}</span><br>
+                    <span class="date-text">📅 วันที่: {d_str}</span><br>
                     {int(row['Shares']):,} หุ้น @ <b>${p:.2f}</b><br>
                     <b>{row['Insider']}</b> ({row['Position']})
                 </div>
@@ -88,18 +93,17 @@ try:
     with col_right:
         st.subheader("🔴 รายการขาย (ระวังตัว)")
         if not sells_df.empty:
-            sells_df = sells_df.sort_index(ascending=False).head(15)
+            sells_df = sells_df.sort_values(by='Transaction_Date', ascending=False).head(15)
             for _, row in sells_df.iterrows():
                 p = row.get('Price', 0)
-                if p == 0 or pd.isna(p): p = row.get('Backup_price', 0)
+                if p == 0 or pd.isna(p): p = row.get('Backup_Price', 0)
 
-                raw_date = row.iloc[0]
-                date_str = raw_date.strftime('%d/%m/%Y') if hasattr(raw_date, 'strftime') else str(raw_date)[:10]
+                d_str = row['Transaction_Date'].strftime('%d/%m/%Y')
 
                 st.markdown(f"""
                 <div class="sell-card">
                     <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#E74C3C">SELL</span><br>
-                    <span class="date-text">📅 วันที่ทำรายการ: {date_str}</span><br>
+                    <span class="date-text">📅 วันที่: {d_str}</span><br>
                     {int(row['Shares']):,} หุ้น @ <b>${p:.2f}</b><br>
                     <b>{row['Insider']}</b> ({row['Position']})
                 </div>
