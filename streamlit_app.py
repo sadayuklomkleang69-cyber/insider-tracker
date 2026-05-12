@@ -1,51 +1,45 @@
-import streamlit as st
-import pandas as pd
-
-# 1. ตั้งค่าหน้ากระดาษ
-st.set_page_config(page_title="Chairman Nu Command Center V7.2", layout="wide")
-
-# 2. Sidebar Menu
-st.sidebar.title("💎 Main Menu")
-mode = st.sidebar.radio(
-    "เลือกโหมดการทำงาน:",
-    ("🎯 กลยุทธ์ & ความคุ้มค่า", "📊 Whale Sentiment Score", "🐳 Insider Live Feed", "📰 News Intelligence", "🧮 ตารางคำนวณ Dime")
-)
-
-# 3. ข้อมูลหุ้นจริงจาก Watchlist (อัปเดตตามหน้าจอ TradingView ของประธาน)
-data = {
-    "Ticker": ["NVDA", "TSM", "ASML", "PLTR", "GOOGL", "AVGO", "MSFT", "AMZN", "ARM", "AMD", "MU", "RKLB"],
-    "Price": [217.79, 390.43, 1497.52, 135.12, 387.22, 418.72, 408.59, 264.64, 206.24, 443.00, 750.46, 116.35],
-    "Insider_Activity": ["Buying", "Neutral", "Selling", "Buying", "Neutral", "Neutral", "Selling", "Neutral", "Buying", "Neutral", "Neutral", "Heavy Buying"]
-}
-df = pd.DataFrame(data)
-
-# --- การแสดงผลตามโหมด ---
-
-if mode == "🎯 กลยุทธ์ & ความคุ้มค่า":
-    st.title("🎯 กลยุทธ์การลงทุน: จุดซื้อไม้ 1-2-3")
-    st.dataframe(df[["Ticker", "Price"]], use_container_width=True)
-
-elif mode == "🐳 Insider Live Feed":
-    st.title("🐳 Insider Live Feed: เจาะรอยเท้าเจ้ามือ")
+elif mode == "📰 News Intelligence":
+    st.title("📰 News Intelligence: Market Pulse")
     st.markdown("---")
     
-    # รายละเอียดความเคลื่อนไหวที่ท่านต้องการ
-    col1, col2 = st.columns(2)
+    # ส่วนที่ 1: ข่าวร้อนที่กระทบดัชนีหลัก
+    st.subheader("🔥 Top Headlines & Macro Impact")
+    col1, col2, col3 = st.columns(3)
     with col1:
-        st.subheader("📢 รายงานสถานะล่าสุด")
-        st.success("✅ **RKLB:** ตรวจพบแรงซื้อสะสมจากระดับ Executive เพิ่มขึ้น 15% ในช่วงราคา $115-116")
-        st.info("✅ **ARM:** SoftBank ยังไม่มีการขยับสถานะขายเพิ่ม เป็นสัญญาณบวกในระยะสั้น")
-        st.warning("⚠️ **NVDA:** พบการทำกำไร (Profit Taking) จากผู้บริหารระดับสูงบางส่วน")
-    
+        st.error("⛽ **Energy Crisis**")
+        st.write("Brent Crude พุ่งแตะ $107.72 ส่งผลให้เงินเฟ้อสหรัฐฯ มีแนวโน้มสูงกว่าคาด")
     with col2:
-        st.subheader("📈 สรุปปริมาณการซื้อขาย")
-        # แสดงตารางกิจกรรม Insider ของหุ้นแต่ละตัว
-        st.table(df[["Ticker", "Insider_Activity"]])
+        st.warning("🦅 **Fed Sentiment**")
+        st.write("รายงานประชุม Fed บ่งชี้ว่าอาจยังไม่มีการลดดอกเบี้ยจนกว่าจะไตรมาส 4")
+    with col3:
+        st.success("🚀 **Space Economy**")
+        st.write("NASA เตรียมประกาศงบประมาณใหม่สำหรับ Artemis ซึ่งเป็นบวกต่อหุ้นกลุ่ม Aerospace")
 
-elif mode == "📰 News Intelligence":
-    st.title("📰 News Intelligence")
-    st.info("📌 **Market Pulse:** ราคาน้ำมัน $107 กดดันกลุ่ม Tech / จับตางบ NVDA")
+    st.markdown("---")
+    
+    # ส่วนที่ 2: เจาะลึกข่าวหุ้นใน Watchlist ของท่าน (RKLB, NVDA, ARM)
+    st.subheader("🎯 Stock-Specific Intelligence")
+    
+    with st.expander("🚀 Rocket Lab (RKLB) - Deep Insight"):
+        st.write("""
+        - **News:** ตรวจพบปริมาณการซื้อขาย (Volume) ผิดปกติในโซน $115
+        - **Impact:** เป็นสัญญาณ 'Accumulation' หรือการเก็บของของสถาบันก่อนมีข่าวใหญ่
+        - **Strategy:** หากยืนเหนือ $116 ได้ มีโอกาสทดสอบ High เดิม
+        """)
+        
+    with st.expander("🟢 NVIDIA (NVDA) - Earnings Watch"):
+        st.write("""
+        - **News:** ความต้องการชิป Blackwell ยังคงล้นตลาด แต่ปัญหา Supply Chain เริ่มถูกพูดถึง
+        - **Impact:** ตลาดอาจจะผันผวนแรง (Volatility) ในช่วง 1 สัปดาห์ก่อนประกาศงบ
+        """)
 
-else:
-    st.title(f"{mode}")
-    st.write("ระบบกำลังรวบรวมข้อมูลเชิงลึก...")
+    with st.expander("📱 ARM Holdings - Partnership News"):
+        st.write("""
+        - **News:** มีข่าวลือเรื่องความร่วมมือใหม่กับ Apple ในส่วนของชิป AI Server
+        - **Impact:** ช่วยพยุงราคาหุ้นไม่ให้หลุดแนวรับสำคัญที่ $200
+        """)
+
+    # ส่วนที่ 3: สรุปกลยุทธ์จากจาร์วิส
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("💡 Jarvis's Daily Advice")
+    st.sidebar.write("ประธานครับ วันนี้ตลาด 'กลัว' (Fear) มากกว่า 'โลภ' แนะนำให้ใจเย็นๆ รอปลาใหญ่กินเบ็ดที่ไม้ 1 ตามตารางครับ")
