@@ -12,100 +12,85 @@ st.markdown("""
     .main { background-color: #121212; color: white; }
     h1, h2, h3 { color: #4FA3FF !important; font-family: 'Kanit', sans-serif; }
     .buy-card {
-        background-color: #1E1E1E;
-        padding: 20px;
-        border-radius: 12px;
-        border-left: 6px solid #2ECC71;
-        margin-bottom: 15px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        background-color: #1E1E1E; padding: 20px; border-radius: 12px;
+        border-left: 6px solid #2ECC71; margin-bottom: 10px;
+    }
+    .sell-card {
+        background-color: #1E1E1E; padding: 20px; border-radius: 12px;
+        border-left: 6px solid #E74C3C; margin-bottom: 10px;
     }
     .ticker-name { color: #F1C40F; font-size: 22px; font-weight: bold; }
     .price-text { color: #4FA3FF; font-size: 18px; }
+    .sell-text { color: #E74C3C; font-weight: bold; }
+    .buy-text { color: #2ECC71; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. HEADER ---
-st.title('🎯 ระบบจับตา "คนใน" (Chairman Nu Edition)')
-st.write(f"อัปเดตล่าสุด: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+st.title('🎯 ระบบจับตาปลาวาฬ: ซื้อ & ขาย')
+st.write(f"ข้อมูลสดจาก Yahoo Finance | อัปเดต: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
 # --- 3. WATCHLIST ---
-watchlist = ['NVDA', 'TSM', 'MSFT', 'PLTR', 'UPST', 'SOFI', 'GOOGL', 'AMD', 'TSLA']
+watchlist = ['NVDA', 'TSM', 'MSFT', 'PLTR', 'UPST', 'SOFI', 'GOOGL', 'AMD', 'TSLA', 'ARM', 'MU']
 
 @st.cache_data(ttl=600)
-def get_yfinance_insider():
-    all_data = []
+def get_insider_combined():
+    all_buys = []
+    all_sells = []
     for ticker in watchlist:
         try:
             t = yf.Ticker(ticker)
             df = t.insider_transactions
             if df is not None and not df.empty:
+                df['Symbol'] = ticker
+                # แยกซื้อและขาย
                 buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
-                if not buys.empty:
-                    buys['Symbol'] = ticker
-                    # ดึงราคาปัจจุบันมาสำรองไว้
-                    try:
-                        current_price = t.fast_info['lastPrice']
-                    except:
-                        current_price = 0
-                    buys['Current_Price'] = current_price
-                    buys = buys.reset_index()
-                    all_data.append(buys)
-        except:
-            continue
-    return pd.concat(all_data) if all_data else pd.DataFrame()
+                sells = df[df['Text'].str.contains('Sale', case=False, na=False)].copy()
+                if not buys.empty: all_buys.append(buys)
+                if not sells.empty: all_sells.append(sells)
+        except: continue
+    return (pd.concat(all_buys) if all_buys else pd.DataFrame(), 
+            pd.concat(all_sells) if all_sells else pd.DataFrame())
 
 # --- 4. EXECUTION ---
 try:
-    with st.spinner('จาร์วิสกำลังสแกนหาปลาวาฬ...'):
-        final_df = get_yfinance_insider()
+    with st.spinner('จาร์วิสกำลังสแกนหาการเคลื่อนไหว...'):
+        buys_df, sells_df = get_insider_combined()
 
-    if not final_df.empty:
-        final_df.columns = [str(c).capitalize() for c in final_df.columns]
-        
-        col_left, col_right = st.columns([1, 2])
-        
-        with col_left:
-            st.subheader("📊 สัดส่วนการเก็บหุ้น")
-            fig = px.pie(final_df, values='Shares', names='Symbol', hole=0.7,
-                         color_discrete_sequence=px.colors.qualitative.Pastel)
-            fig.update_traces(textfont=dict(color='black', size=14), textinfo='percent+label')
-            fig.update_layout(showlegend=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig, use_container_width=True)
+    col_left, col_right = st.columns(2)
 
-        with col_right:
-            st.subheader("💎 รายการซื้อล่าสุด (10 อันดับ)")
-            final_df = final_df.sort_values(by=final_df.columns[0], ascending=False).head(10)
-            
-            for _, row in final_df.iterrows():
-                s_symbol = row.get('Symbol', 'N/A')
-                s_shares = row.get('Shares', 0)
-                # ถ้าราคาซื้อเป็น 0 ให้ใช้ราคาปัจจุบันแทน
-                s_price = row.get('Price', 0)
-                if s_price == 0:
-                    s_price = row.get('Current_price', 0)
-                
-                s_insider = row.get('Insider', 'Unknown')
-                s_pos = row.get('Position', 'Insider')
-                raw_date = row.iloc[0]
-                date_str = raw_date.strftime('%Y-%m-%d') if hasattr(raw_date, 'strftime') else str(raw_date)
-                
+    with col_left:
+        st.subheader("🟢 รายการซื้อ (สะสมของ)")
+        if not buys_df.empty:
+            buys_df = buys_df.sort_index(ascending=False).head(10)
+            for _, row in buys_df.iterrows():
                 st.markdown(f"""
                 <div class="buy-card">
-                    <table style="width:100%;">
-                        <tr>
-                            <td style="width:20%;"><span class="ticker-name">{s_symbol}</span><br><small>{date_str}</small></td>
-                            <td style="width:30%; text-align:center;">จำนวน: {int(s_shares):,} หุ้น</td>
-                            <td style="width:20%; text-align:center;"><span class="price-text">${float(s_price):.2f}</span></td>
-                            <td style="width:30%; text-align:right;"><b>{s_insider}</b><br><small>{s_pos}</small></td>
-                        </tr>
-                    </table>
+                    <span class="ticker-name">{row['Symbol']}</span> | <span class="buy-text">BUY</span><br>
+                    {int(row['Shares']):,} หุ้น @ ${row['Price']:.2f}<br>
+                    <b>{row['Insider']}</b> ({row['Position']})
                 </div>
                 """, unsafe_allow_html=True)
-    else:
-        st.info("💡 ช่วงนี้เหล่าปลาวาฬยังเฝ้าดูสถานการณ์อยู่ครับ")
+        else:
+            st.info("ยังไม่มีรายการซื้อใหม่")
+
+    with col_right:
+        st.subheader("🔴 รายการขาย (ระวังตัว)")
+        if not sells_df.empty:
+            sells_df = sells_df.sort_index(ascending=False).head(10)
+            for _, row in sells_df.iterrows():
+                st.markdown(f"""
+                <div class="sell-card">
+                    <span class="ticker-name">{row['Symbol']}</span> | <span class="sell-text">SELL</span><br>
+                    {int(row['Shares']):,} หุ้น @ ${row['Price']:.2f}<br>
+                    <b>{row['Insider']}</b> ({row['Position']})
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.success("ปลอดภัย! ยังไม่มีปลาวาฬเทขายในกลุ่มนี้ครับ")
 
 except Exception as e:
-    st.error(f"ระบบกำลังปรับจูนข้อมูล: {e}")
+    st.error(f"ระบบกำลังปรับปรุง: {e}")
 
-if st.button('🔄 รีเฟรชข้อมูล'):
+if st.button('🔄 อัปเดตข้อมูล'):
     st.rerun()
