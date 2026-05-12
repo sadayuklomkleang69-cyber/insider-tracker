@@ -42,26 +42,38 @@ def get_live_data_with_sentiment(ticker_list):
             dist_to_target = ((current_p - target) / target) * 100
             
             # วิเคราะห์อารมณ์
-          # คำนวณ RSI (เช็คก่อนว่าข้อมูลพอไหม)
-        rsi_series = ta.rsi(df['Close'], length=14)
-        if rsi_series is not None and not rsi_series.empty:
-            current_rsi = rsi_series.iloc[-1]
-        else:
-            current_rsi = 50  # ถ้าคำนวณไม่ได้ ให้ค่ากลางๆ ไว้ก่อน
+         try:
+            t = yf.Ticker(symbol)
+            df = t.history(period="1mo")
+            
+            # คำนวณ RSI
+            rsi_series = ta.rsi(df['Close'], length=14)
+            current_rsi = rsi_series.iloc[-1] if rsi_series is not None and not rsi_series.empty else 50
+            
+            current_p = df['Close'].iloc[-1]
+            prev_p = df['Close'].iloc[-2]
+            change = ((current_p - prev_p) / prev_p) * 100
+            target = target_prices.get(symbol, 0)
+            dist_to_target = ((current_p - target) / target) * 100
+            
+            # กำหนด Sentiment และ Mood
+            if current_rsi < 30: sentiment = "🔥 น่าช้อน (คนกลัวสุดขีด)"
+            elif current_rsi < 45: sentiment = "📉 เริ่มถูก (รอจังหวะ)"
+            elif current_rsi > 70: sentiment = "⚠️ ระวัง (คนโลภเกินไป)"
+            else: sentiment = "⚖️ ปกติ"
 
             stock_data.append({
-                "Ticker": symbol,
-                "Price": round(current_p, 2),
-                "Change %": f"{change:.2f}%",
-                "RSI (Sentiment)": round(current_rsi, 2),
-                "Market Mood": sentiment,
-                "Gap": f"{dist_to_target:.2f}%",
-                "Raw_Gap": dist_to_target,
+                "Ticker": symbol, 
+                "Price": round(current_p, 2), 
+                "Change %": f"{change:.2f}%", 
+                "RSI (Sentiment)": round(current_rsi, 2), 
+                "Market Mood": sentiment, 
+                "Gap": f"{dist_to_target:.2f}%", 
+                "Raw_Gap": dist_to_target, 
                 "Raw_RSI": current_rsi
             })
-        except:
+        except Exception as e:
             continue
-    return pd.DataFrame(stock_data)
 
 df_live = get_live_data_with_sentiment(tickers)
 
