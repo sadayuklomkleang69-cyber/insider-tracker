@@ -5,7 +5,7 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V8.6", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V8.7", layout="wide")
 st_autorefresh(interval=300000, key="datarefresh")
 
 # 2. Initializing Systems
@@ -14,7 +14,7 @@ if 'cash_balance' not in st.session_state:
 if 'battle_log' not in st.session_state:
     st.session_state.battle_log = []
 
-# 3. Strategic Intel (ยัดรายละเอียดจุดตาย Cerebras ตามที่ประธานต้องการ)
+# 3. Strategic Intel (แก้ไขโครงสร้างให้รองรับข้อมูลเก่า)
 if 'news_bulletin' not in st.session_state:
     st.session_state.news_bulletin = [
         {
@@ -22,16 +22,10 @@ if 'news_bulletin' not in st.session_state:
             "Topic": "Cerebras IPO: 3 จุดตายที่ต้องระวัง!", 
             "Impact": "⚠️ High Risk",
             "Detail": """
-            1. **รายได้กระจุกตัว:** 87% ของรายได้มาจากลูกค้ารายเดียว (G42 จาก UAE) ถ้าเค้าเลิกซื้อคือจบ!
-            2. **สงครามชิป:** ต้องแข่งกับ NVIDIA (H100/B200) ตรงๆ แม้ชิปจะใหญ่กว่าแต่ Ecosystem สู้ยาก
-            3. **ขาดทุนสะสม:** ตัวเลขขาดทุนยังสูงมาก และการเป็นบริษัท AI Hardware ต้องใช้เงินเผา (Burn Rate) มหาศาล
+            • **รายได้กระจุกตัว:** 87% ของรายได้มาจากลูกค้ารายเดียว (G42) ความเสี่ยงสูงมากหากมีการเปลี่ยนแปลงสัญญา
+            • **คู่แข่งมหาหิน:** ต้องสู้กับ Ecosystem ของ NVIDIA (CUDA) ที่ครองตลาด AI อยู่ในปัจจุบัน
+            • **Burn Rate:** ขาดทุนสะสมยังสูง การระดมทุนครั้งนี้เพื่อต่อลมหายใจในสงคราม Hardware
             """
-        },
-        {
-            "Date": "2026-05-12", 
-            "Topic": "ARK (Cathie Wood) เทขาย AMD และ RKLB", 
-            "Impact": "📉 Negative",
-            "Detail": "ป้าเคที่เริ่มปรับพอร์ต ลดสัดส่วนหุ้นรองเพื่อถือเงินสดเพิ่มในกลุ่ม Semi"
         }
     ]
 
@@ -44,13 +38,6 @@ target_prices = {
 tickers = list(target_prices.keys())
 
 # 5. Functions
-def calculate_rsi_manual(series, period=14):
-    delta = series.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-    rs = gain / loss
-    return 100 - (100 / (1 + rs))
-
 @st.cache_data(ttl=600)
 def get_data(ticker_list):
     stock_data = []
@@ -58,17 +45,21 @@ def get_data(ticker_list):
         try:
             ticker_obj = yf.Ticker(symbol)
             df = ticker_obj.history(period="1mo")
-            if df.empty or len(df) < 15: continue
-            df['RSI'] = calculate_rsi_manual(df['Close'])
+            if df.empty: continue
+            
+            # Simple RSI Calculation
+            delta = df['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            current_rsi = 100 - (100 / (1 + (gain / loss))).iloc[-1]
+            
             current_p = float(df['Close'].iloc[-1])
             prev_p = float(df['Close'].iloc[-2])
-            current_rsi = float(df['RSI'].iloc[-1])
             change = ((current_p - prev_p) / prev_p) * 100
             target = target_prices.get(symbol, 0)
             gap = ((current_p - target) / target) * 100
-            if current_rsi < 35: mood = "🔥 น่าช้อน"
-            elif current_rsi < 45: mood = "📉 เริ่มถูก"
-            else: mood = "⚖️ ปกติ"
+
+            mood = "🔥 น่าช้อน" if current_rsi < 35 else "📉 เริ่มถูก" if current_rsi < 45 else "⚖️ ปกติ"
             stock_data.append({
                 "Ticker": symbol, "Price": round(current_p, 2),
                 "Change %": f"{change:+.2f}%", "RSI": round(current_rsi, 2),
@@ -81,25 +72,26 @@ def get_data(ticker_list):
 st.sidebar.title("🧨 Ammunition Depot")
 st.sidebar.metric("กระสุนคงเหลือ", f"{st.session_state.cash_balance:,.2f} THB")
 
-with st.sidebar.expander("🎯 ปฏิบัติการยิงกระสุน"):
-    sel_stock = st.selectbox("เลือกเป้าหมาย", tickers)
-    spent = st.number_input("ใช้กระสุน (THB)", min_value=0.0)
-    if st.button("Execute"):
-        if spent <= st.session_state.cash_balance:
-            st.session_state.cash_balance -= spent
-            st.session_state.battle_log.append({"Time": time.strftime("%H:%M"), "Ticker": sel_stock, "Spent": spent})
+with st.sidebar.expander("🎯 ยิงกระสุน / 📰 เพิ่มข่าว"):
+    mode = st.radio("เลือกโหมด", ["ยิงหุ้น", "เพิ่มข่าว"])
+    if mode == "ยิงหุ้น":
+        sel_stock = st.selectbox("เป้าหมาย", tickers)
+        spent = st.number_input("จำนวนเงิน (THB)", min_value=0.0)
+        if st.button("Execute Order"):
+            if spent <= st.session_state.cash_balance:
+                st.session_state.cash_balance -= spent
+                st.session_state.battle_log.append({"Time": time.strftime("%H:%M"), "Ticker": sel_stock, "Spent": spent})
+                st.rerun()
+    else:
+        t = st.text_input("หัวข้อ")
+        d = st.text_area("รายละเอียด")
+        imp = st.selectbox("Impact", ["🔥 Hot", "⚠️ Warning", "📈 Positive", "📉 Negative"])
+        if st.button("บันทึก Intel"):
+            st.session_state.news_bulletin.insert(0, {"Date": time.strftime("%Y-%m-%d"), "Topic": t, "Impact": imp, "Detail": d})
             st.rerun()
 
-with st.sidebar.expander("📰 เพิ่มข่าว (Intel)"):
-    t = st.text_input("หัวข้อ")
-    d = st.text_area("รายละเอียดข่าว")
-    imp = st.selectbox("Impact", ["🔥 Hot", "⚠️ Warning", "📈 Positive", "📉 Negative"])
-    if st.button("บันทึก Intel"):
-        st.session_state.news_bulletin.insert(0, {"Date": time.strftime("%Y-%m-%d"), "Topic": t, "Impact": imp, "Detail": d})
-        st.rerun()
-
 # --- MAIN ---
-st.title("🎯 Chairman Nu Command Center V8.6")
+st.title("🎯 Chairman Nu Command Center V8.7")
 
 # 1. Table
 data = get_data(tickers)
@@ -109,11 +101,12 @@ if not data.empty:
 
 st.markdown("---")
 
-# 2. Intel Bulletin (โหมดโชว์รายละเอียดที่ประธานต้องการ)
+# 2. Strategic Intel Bulletin (แก้ไขให้กัน Error)
 st.subheader("📰 Strategic Intel Bulletin")
 for news in st.session_state.news_bulletin:
-    with st.expander(f"**[{news['Date']}] {news['Impact']} : {news['Topic']}**"):
-        st.write(news['Detail']) # โชว์รายละเอียดตรงนี้ครับประธาน!
+    with st.expander(f"**[{news.get('Date', 'N/A')}] {news.get('Impact', '')} : {news.get('Topic', 'No Topic')}**"):
+        # ใช้ .get() เพื่อกันเหนียว ถ้าไม่มี Detail ให้โชว์คำว่า No details provided
+        st.write(news.get('Detail', 'ไม่มีรายละเอียดเพิ่มเติมสำหรับข่าวนี้'))
 
 st.markdown("---")
 
@@ -124,4 +117,8 @@ with col1:
     if st.session_state.battle_log: st.table(pd.DataFrame(st.session_state.battle_log).iloc[::-1])
 with col2:
     st.subheader("📊 Allocation")
-    if st.session_state.battle_log: st.bar_chart(pd.DataFrame(st.session_state.battle_log).groupby("Ticker")["Spent"].sum())
+    if st.session_state.battle_log: 
+        log_df = pd.DataFrame(st.session_state.battle_log)
+        st.bar_chart(log_df.groupby("Ticker")["Spent"].sum())
+
+st.caption("© 2026 Chairman Nu Intelligence System • Bug Fixed & Ready for Cerebras IPO")
