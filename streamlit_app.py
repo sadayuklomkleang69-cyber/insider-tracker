@@ -25,7 +25,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- 2. HEADER ---
-st.title('🎯 ระบบจับตา "คนใน" (ฉบับเสถียรที่สุด)')
+st.title('🎯 ระบบจับตา "คนใน" (Chairman Nu Edition)')
 st.write(f"อัปเดตล่าสุด: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
 # --- 3. WATCHLIST ---
@@ -54,6 +54,9 @@ try:
         final_df = get_yfinance_insider()
 
     if not final_df.empty:
+        # ปรับชื่อคอลัมน์ให้เป็นมาตรฐานเดียวกันเพื่อป้องกัน Error
+        final_df.columns = [str(c).capitalize() for c in final_df.columns]
+        
         col_left, col_right = st.columns([1, 2])
         
         with col_left:
@@ -66,9 +69,18 @@ try:
 
         with col_right:
             st.subheader("💎 รายการซื้อล่าสุด (10 อันดับ)")
+            # เรียงตามวันที่ล่าสุด (ใช้คอลัมน์แรกสุดที่เป็นวันที่)
             final_df = final_df.sort_values(by=final_df.columns[0], ascending=False).head(10)
             
             for _, row in final_df.iterrows():
+                # ดึงข้อมูลแบบปลอดภัย
+                s_symbol = row.get('Symbol', 'N/A')
+                s_shares = row.get('Shares', 0)
+                s_price = row.get('Price', 0)
+                s_insider = row.get('Insider', 'Unknown')
+                s_pos = row.get('Position', 'Insider')
+                
+                # จัดการเรื่องวันที่
                 raw_date = row.iloc[0]
                 date_str = raw_date.strftime('%Y-%m-%d') if hasattr(raw_date, 'strftime') else str(raw_date)
                 
@@ -76,10 +88,10 @@ try:
                 <div class="buy-card">
                     <table style="width:100%;">
                         <tr>
-                            <td style="width:20%;"><span class="ticker-name">{row['Symbol']}</span><br><small>{date_str}</small></td>
-                            <td style="width:30%; text-align:center;">จำนวน: {int(row['Shares']):,} หุ้น</td>
-                            <td style="width:20%; text-align:center;"><span class="price-text">${row['Price']:.2f}</span></td>
-                            <td style="width:30%; text-align:right;"><b>{row['Insider']}</b><br><small>{row['Position']}</small></td>
+                            <td style="width:20%;"><span class="ticker-name">{s_symbol}</span><br><small>{date_str}</small></td>
+                            <td style="width:30%; text-align:center;">จำนวน: {int(s_shares):,} หุ้น</td>
+                            <td style="width:20%; text-align:center;"><span class="price-text">${float(s_price):.2f}</span></td>
+                            <td style="width:30%; text-align:right;"><b>{s_insider}</b><br><small>{s_pos}</small></td>
                         </tr>
                     </table>
                 </div>
@@ -88,7 +100,7 @@ try:
         st.info("💡 ช่วงนี้เหล่าปลาวาฬยังเฝ้าดูสถานการณ์อยู่ครับ")
 
 except Exception as e:
-    st.error(f"ระบบกำลังปรับปรุง: {e}")
+    st.error(f"ระบบกำลังปรับจูนข้อมูล: {e}")
 
 if st.button('🔄 รีเฟรชข้อมูล'):
     st.rerun()
