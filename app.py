@@ -5,7 +5,7 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V9.4", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V9.5", layout="wide")
 st_autorefresh(interval=60000, key="datarefresh")
 
 # 2. Initializing Systems
@@ -13,6 +13,8 @@ if 'cash_balance' not in st.session_state:
     st.session_state.cash_balance = 4000.0
 if 'battle_log' not in st.session_state:
     st.session_state.battle_log = []
+if 'my_portfolio' not in st.session_state:
+    st.session_state.my_portfolio = {} # {Ticker: {Total_Spent: 0, Total_Qty: 0, Avg_Price: 0}}
 
 # 3. Target Data
 target_prices = {
@@ -25,60 +27,34 @@ tickers = list(target_prices.keys())
 # 4. Functions
 @st.cache_data(ttl=60)
 def get_stock_data(ticker_list):
-    stock_data = []
+    stock_data = {}
     for symbol in ticker_list:
         try:
             ticker_obj = yf.Ticker(symbol)
-            # ดึงข้อมูลย้อนหลัง 5 วัน เพื่อให้มีแท่งเทียนพอคำนวณ RSI (14)
-            df = ticker_obj.history(period="5d", interval="15m") 
-            if df.empty or len(df) < 15: continue
+            df = ticker_obj.history(period="5d", interval="15m")
+            if df.empty: continue
             
-            # คำนวณ RSI
+            # RSI Calculation
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / loss
-            current_rsi = 100 - (100 / (1 + rs))
-            val_rsi = current_rsi.iloc[-1]
-
-            # ราคาปัจจุบันและ % Change
+            current_rsi = 100 - (100 / (1 + (gain / loss))).iloc[-1]
+            
             current_p = float(df['Close'].iloc[-1])
             prev_close = ticker_obj.fast_info['previousClose']
             change = ((current_p - prev_close) / prev_close) * 100
-
-            mood = "🔥 น่าช้อน" if val_rsi < 35 else "📉 เริ่มถูก" if val_rsi < 45 else "⚖️ ปกติ"
             
-            stock_data.append({
-                "Ticker": symbol, 
-                "Price": round(current_p, 2),
-                "Change %": f"{change:+.2f}%", 
-                "RSI": round(val_rsi, 2),
-                "Market Mood": mood
-            })
+            stock_data[symbol] = {
+                "Price": current_p,
+                "Change %": change,
+                "RSI": current_rsi,
+                "Mood": "🔥 น่าช้อน" if current_rsi < 35 else "📉 เริ่มถูก" if current_rsi < 45 else "⚖️ ปกติ"
+            }
         except: continue
-    return pd.DataFrame(stock_data)
-
-def get_breaking_news(ticker_list):
-    important_news = []
-    keywords = ['breaking', 'urgent', 'ipo', 'earnings', 'surge', 'plummet', 'crash', 'deal', 'alert', 'insider']
-    for symbol in ticker_list[:8]:
-        try:
-            ticker_obj = yf.Ticker(symbol)
-            news_items = ticker_obj.news
-            for item in news_items[:3]:
-                title = item.get('title', '').lower()
-                if any(kw in title for kw in keywords):
-                    important_news.append({
-                        "Ticker": symbol, "Title": item.get('title'),
-                        "Summary": item.get('summary', ''),
-                        "Publisher": item.get('publisher'),
-                        "Time": time.ctime(item.get('providerPublishTime'))
-                    })
-        except: continue
-    return important_news
+    return stock_data
 
 # --- TOP HUD ---
-st.title("🎯 Chairman Nu Command Center V9.4")
+st.title("🎯 Chairman Nu Command Center V9.5")
 col_status, col_ammo, col_fill, col_fire = st.columns([1, 2, 1, 1])
 
 with col_status:
@@ -90,39 +66,54 @@ with col_ammo:
 
 with col_fill:
     with st.popover("📥 เติมเงิน"):
-        amt = st.number_input("จำนวนเงิน", min_value=0.0, step=500.0)
-        if st.button("ยืนยันการเติม"):
+        amt = st.number_input("จำนวนเงินที่เติม", min_value=0.0, step=500.0)
+        if st.button("ยืนยัน"):
             st.session_state.cash_balance += amt
             st.rerun()
 
 with col_fire:
     with st.popover("🎯 ยิงกระสุน"):
         sel = st.selectbox("เป้าหมาย", tickers)
-        p = st.number_input("ราคา ($)", min_value=0.0)
-        s = st.number_input("ใช้กระสุน (THB)", min_value=0.0)
+        p_usd = st.number_input("ราคาหุ้นที่ซื้อ ($)", min_value=0.01)
+        spent_thb = st.number_input("ใช้กระสุน (THB)", min_value=0.0)
         if st.button("Execute Order"):
-            if s <= st.session_state.cash_balance:
-                st.session_state.cash_balance -= s
-                st.session_state.battle_log.append({"Time": time.strftime("%H:%M"), "Ticker": sel, "Spent": s, "Price": p})
+            if spent_thb <= st.session_state.cash_balance and spent_thb > 0:
+                # บันทึก Battle Log
+                st.session_state.cash_balance -= spent_thb
+                st.session_state.battle_log.append({"Time": time.strftime("%H:%M"), "Ticker": sel, "Spent": spent_thb, "Price": p_usd})
+                
+                # อัปเดตพอร์ต (Simplified Calculation)
+                if sel not in st.session_state.my_portfolio:
+                    st.session_state.my_portfolio[sel] = {"Total_Spent": 0.0}
+                st.session_state.my_portfolio[sel]["Total_Spent"] += spent_thb
+                
                 st.balloons(); st.rerun()
-            else: st.error("กระสุนไม่พอ!")
+            else: st.error("ข้อมูลไม่ถูกต้อง หรือกระสุนไม่พอ!")
 
 st.markdown("---")
 
-# ส่วนที่ 1: ตารางหุ้น
-data = get_stock_data(tickers)
-if not data.empty:
-    st.subheader("🚀 Market Live Pulse")
-    # ปรับการแสดงผล RSI ให้เป็นตัวเลขชัดเจน
-    st.dataframe(data.sort_values("Change %", ascending=False), use_container_width=True)
+# ดึงข้อมูลตลาด
+market_data = get_stock_data(tickers)
 
-# ส่วนที่ 2: Breaking News Only
-breaking = get_breaking_news(tickers)
-if breaking:
-    st.markdown("---")
-    st.subheader("🚨 Strategic Intel: Breaking Alerts")
-    for news in breaking:
-        st.warning(f"**[{news['Ticker']}] {news['Title']}** \n\n {news['Summary']} \n\n *Source: {news['Publisher']} | {news['Time']}*")
+# --- ส่วนที่ 1: รายละเอียดพอร์ตของประธาน (The Vault) ---
+st.subheader("📁 My Strategic Assets (พอร์ตของฉัน)")
+if st.session_state.my_portfolio:
+    p_cols = st.columns(len(st.session_state.my_portfolio) if len(st.session_state.my_portfolio) < 5 else 4)
+    for idx, (t, p_info) in enumerate(st.session_state.my_portfolio.items()):
+        with p_cols[idx % 4]:
+            current_mkt_price = market_data.get(t, {}).get("Price", 0)
+            st.info(f"**{t}**\n\nทุนสะสม: {p_info['Total_Spent']:,.2f} THB\n\nราคาตลาด: ${current_mkt_price}")
+else:
+    st.write("ยังไม่มีหุ้นในครอบครอง กดยิงกระสุนเพื่อเริ่มสะสม")
+
+st.markdown("---")
+
+# ส่วนที่ 2: ตารางหุ้น
+if market_data:
+    st.subheader("🚀 Market Live Pulse")
+    display_df = pd.DataFrame.from_dict(market_data, orient='index').reset_index()
+    display_df.columns = ["Ticker", "Price", "Change %", "RSI", "Market Mood"]
+    st.dataframe(display_df.sort_values("RSI"), use_container_width=True)
 
 st.markdown("---")
 
@@ -131,4 +122,4 @@ st.subheader("📜 Battle Log")
 if st.session_state.battle_log:
     st.table(pd.DataFrame(st.session_state.battle_log).iloc[::-1])
 
-st.caption("© 2026 Chairman Nu Intelligence System • RSI Precision Fixed")
+st.caption("© 2026 Chairman Nu Intelligence System • Portfolio Mode Active")
