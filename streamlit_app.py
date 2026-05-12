@@ -12,7 +12,7 @@ st.title('🎯 ระบบจับตา "คนใน" (Insider Buy)')
 st.write(f"อัปเดตล่าสุด: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
 # 3. เชื่อมต่อข้อมูล (ใช้ API ของท่านที่กรอกไว้)
-API_KEY = "OirEUM6wlgFPzMjSC3aWXFkwGkVin2d2"
+API_KEY = "OIrEUM6wlgFPzMjSC3aWXFkwGkVin2d2"
 
 @st.cache_data(ttl=300)
 def get_data():
