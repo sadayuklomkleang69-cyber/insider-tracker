@@ -28,7 +28,7 @@ st.markdown("""
 st.title('🎯 ระบบจับตา "คนใน" (ฉบับเสถียรที่สุด)')
 st.write(f"อัปเดตล่าสุด: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
-# --- 3. WATCHLIST (หุ้นเป้าหมายของท่านประธาน) ---
+# --- 3. WATCHLIST ---
 watchlist = ['NVDA', 'TSM', 'MSFT', 'PLTR', 'UPST', 'SOFI', 'GOOGL', 'AMD', 'TSLA']
 
 @st.cache_data(ttl=600)
@@ -39,11 +39,9 @@ def get_yfinance_insider():
             t = yf.Ticker(ticker)
             df = t.insider_transactions
             if df is not None and not df.empty:
-                # กรองเฉพาะรายการซื้อ (Purchase)
                 buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
                 if not buys.empty:
                     buys['Symbol'] = ticker
-                    # บังคับให้ Index กลายเป็นคอลัมน์ เพื่อดึงวันที่ออกมาให้ได้
                     buys = buys.reset_index()
                     all_data.append(buys)
         except:
@@ -68,8 +66,29 @@ try:
 
         with col_right:
             st.subheader("💎 รายการซื้อล่าสุด (10 อันดับ)")
-            # เรียงจากใหม่ไปเก่า
             final_df = final_df.sort_values(by=final_df.columns[0], ascending=False).head(10)
             
             for _, row in final_df.iterrows():
-                # ด
+                raw_date = row.iloc[0]
+                date_str = raw_date.strftime('%Y-%m-%d') if hasattr(raw_date, 'strftime') else str(raw_date)
+                
+                st.markdown(f"""
+                <div class="buy-card">
+                    <table style="width:100%;">
+                        <tr>
+                            <td style="width:20%;"><span class="ticker-name">{row['Symbol']}</span><br><small>{date_str}</small></td>
+                            <td style="width:30%; text-align:center;">จำนวน: {int(row['Shares']):,} หุ้น</td>
+                            <td style="width:20%; text-align:center;"><span class="price-text">${row['Price']:.2f}</span></td>
+                            <td style="width:30%; text-align:right;"><b>{row['Insider']}</b><br><small>{row['Position']}</small></td>
+                        </tr>
+                    </table>
+                </div>
+                """, unsafe_allow_html=True)
+    else:
+        st.info("💡 ช่วงนี้เหล่าปลาวาฬยังเฝ้าดูสถานการณ์อยู่ครับ")
+
+except Exception as e:
+    st.error(f"ระบบกำลังปรับปรุง: {e}")
+
+if st.button('🔄 รีเฟรชข้อมูล'):
+    st.rerun()
