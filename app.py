@@ -5,32 +5,34 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V9.6", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V9.7", layout="wide")
 st_autorefresh(interval=60000, key="datarefresh")
 
-# 2. Initializing Systems (ยัดข้อมูลพอร์ตจริงตามที่ประธานสั่ง)
+# 2. Initializing Systems (Hardcoded Assets - ข้อมูลจะไม่หายอีกต่อไป)
 if 'cash_balance' not in st.session_state:
-    st.session_state.cash_balance = 4000.0
+    st.session_state.cash_balance = 2970.05 # ยอดกระสุนล่าสุดจากหน้าจอประธาน
 if 'battle_log' not in st.session_state:
     st.session_state.battle_log = []
 
-# ข้อมูลพอร์ตชุดจริงจากประธานนุ
+# ข้อมูลพอร์ตจริงของประธานนุ (ฝังลงในระบบ)
+initial_portfolio = {
+    "TSM": {"Value_THB": 55244.24, "PL_Pct": 10.28, "Note": "🎯 สินทรัพย์สัดส่วนสูงสุด (18.52%)"},
+    "NVDA": {"Value_THB": 46038.54, "PL_Pct": 18.95, "Note": "สัดส่วน 15.44%"},
+    "MU": {"Value_THB": 40188.92, "PL_Pct": 68.75, "Note": "🥇 กำไรสูงสุด"},
+    "MSFT": {"Value_THB": 27148.52, "PL_Pct": 4.69, "Note": ""},
+    "AVGO": {"Value_THB": 25391.97, "PL_Pct": 18.89, "Note": ""},
+    "GOOGL": {"Value_THB": 24350.15, "PL_Pct": 22.86, "Note": ""},
+    "PLTR": {"Value_THB": 16743.23, "PL_Pct": -7.75, "Note": "⚠️ สินทรัพย์เดียวที่ติดลบ"},
+    "ARM": {"Value_THB": 16132.26, "PL_Pct": 29.81, "Note": ""},
+    "AMD": {"Value_THB": 13374.89, "PL_Pct": 61.00, "Note": ""},
+    "AMZN": {"Value_THB": 12972.02, "PL_Pct": 18.21, "Note": ""},
+    "ASML": {"Value_THB": 11166.77, "PL_Pct": 8.95, "Note": ""},
+    "RKLB": {"Value_THB": 6495.83, "PL_Pct": 41.11, "Note": ""},
+    "NBIS": {"Value_THB": 2955.28, "PL_Pct": 16.69, "Note": ""}
+}
+
 if 'my_portfolio' not in st.session_state:
-    st.session_state.my_portfolio = {
-        "TSM": {"Value_THB": 55244.24, "PL_Pct": 10.28, "Note": "🎯 สินทรัพย์สัดส่วนสูงสุด (18.52%)"},
-        "NVDA": {"Value_THB": 46038.54, "PL_Pct": 18.95, "Note": "สัดส่วน 15.44%"},
-        "MU": {"Value_THB": 40188.92, "PL_Pct": 68.75, "Note": "🥇 กำไรสูงสุดในเชิงเปอร์เซ็นต์"},
-        "MSFT": {"Value_THB": 27148.52, "PL_Pct": 4.69, "Note": ""},
-        "AVGO": {"Value_THB": 25391.97, "PL_Pct": 18.89, "Note": ""},
-        "GOOGL": {"Value_THB": 24350.15, "PL_Pct": 22.86, "Note": ""},
-        "PLTR": {"Value_THB": 16743.23, "PL_Pct": -7.75, "Note": "⚠️ สินทรัพย์เดียวที่ติดลบ"},
-        "ARM": {"Value_THB": 16132.26, "PL_Pct": 29.81, "Note": ""},
-        "AMD": {"Value_THB": 13374.89, "PL_Pct": 61.00, "Note": ""},
-        "AMZN": {"Value_THB": 12972.02, "PL_Pct": 18.21, "Note": ""},
-        "ASML": {"Value_THB": 11166.77, "PL_Pct": 8.95, "Note": ""},
-        "RKLB": {"Value_THB": 6495.83, "PL_Pct": 41.11, "Note": ""},
-        "NBIS": {"Value_THB": 2955.28, "PL_Pct": 16.69, "Note": ""}
-    }
+    st.session_state.my_portfolio = initial_portfolio
 
 # 3. Target Data & Tickers
 target_prices = {"NBIS": 170.0, "MU": 730.0, "NVDA": 210.0, "TSM": 380.0, "ASML": 1450.0, "PLTR": 130.0, "GOOGL": 380.0, "AVGO": 400.0, "MSFT": 400.0, "AMZN": 260.0, "ARM": 200.0, "AMD": 430.0, "RKLB": 110.0, "SPY": 530.0}
@@ -52,19 +54,8 @@ def get_stock_data(ticker_list):
         except: continue
     return stock_data
 
-def get_breaking_news(ticker_list):
-    important_news = []; keywords = ['breaking', 'urgent', 'ipo', 'earnings', 'surge', 'plummet', 'crash', 'deal', 'alert']
-    for symbol in ticker_list:
-        try:
-            items = yf.Ticker(symbol).news
-            for item in items[:1]:
-                if any(kw in item.get('title', '').lower() for kw in keywords):
-                    important_news.append({"Ticker": symbol, "Title": item.get('title'), "Time": time.ctime(item.get('providerPublishTime'))})
-        except: continue
-    return important_news
-
 # --- TOP HUD ---
-st.title("🎯 Chairman Nu Command Center V9.6")
+st.title("🎯 Chairman Nu Command Center V9.7")
 total_port_value = sum(item['Value_THB'] for item in st.session_state.my_portfolio.values())
 col1, col2, col3, col4 = st.columns([2, 2, 1, 1])
 with col1: st.metric("💰 รวมมูลค่าพอร์ต", f"{total_port_value:,.2f} THB")
@@ -75,7 +66,7 @@ with col3:
         if st.button("ยืนยัน"): st.session_state.cash_balance += amt; st.rerun()
 with col4:
     with st.popover("🎯 ยิงกระสุน"):
-        sel = st.selectbox("เป้าหมาย", list(target_prices.keys())); p = st.number_input("ราคา ($)"); s = st.number_input("เงิน (THB)")
+        sel = st.selectbox("เป้าหมาย", tickers); p = st.number_input("ราคา ($)"); s = st.number_input("เงิน (THB)")
         if st.button("Execute"):
             if s <= st.session_state.cash_balance:
                 st.session_state.cash_balance -= s; st.session_state.battle_log.append({"Time": time.strftime("%H:%M"), "Ticker": sel, "Spent": s}); st.rerun()
@@ -91,20 +82,12 @@ st.table(pd.DataFrame(p_data))
 
 st.markdown("---")
 
-# ส่วนที่ 2: Market Live Pulse & Breaking News
+# ส่วนที่ 2: Market Live Pulse
 m_data = get_stock_data(tickers)
-col_table, col_news = st.columns([2, 1])
-with col_table:
+if m_data:
     st.subheader("🚀 Market Live Pulse")
-    if m_data:
-        display_df = pd.DataFrame.from_dict(m_data, orient='index').reset_index()
-        display_df.columns = ["Ticker", "Price", "Change %", "RSI", "Market Mood"]
-        st.dataframe(display_df.sort_values("RSI"), use_container_width=True)
-with col_news:
-    st.subheader("🚨 Breaking Alerts")
-    news_list = get_breaking_news(tickers)
-    if news_list:
-        for n in news_list: st.warning(f"**[{n['Ticker']}]** {n['Title']}")
-    else: st.info("ไม่มีความเคลื่อนไหวที่ผิดปกติ")
+    display_df = pd.DataFrame.from_dict(m_data, orient='index').reset_index()
+    display_df.columns = ["Ticker", "Price", "Change %", "RSI", "Market Mood"]
+    st.dataframe(display_df.sort_values("RSI"), use_container_width=True)
 
-st.caption("© 2026 Chairman Nu Intelligence System • Real Assets Integrated")
+st.caption("© 2026 Chairman Nu Intelligence System • Assets Secured")
