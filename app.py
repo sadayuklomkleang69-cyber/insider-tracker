@@ -5,7 +5,7 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V14.4", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V14.5", layout="wide")
 st_autorefresh(interval=60000, key="datarefresh")
 
 # --- UI ENHANCEMENT (NEON TACTICAL CSS) ---
@@ -24,7 +24,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. ข้อมูลพอร์ต (Persistent Session State)
+# 2. ข้อมูลพอร์ต (ระบบจะจำค่านี้ไว้ ไม่ให้หายเมื่อรีเฟรช)
 if 'my_assets' not in st.session_state:
     st.session_state.my_assets = {
         "TSM": {"Val": 55244.24, "PL": 10.28}, "NVDA": {"Val": 46038.54, "PL": 18.95},
@@ -35,15 +35,20 @@ if 'my_assets' not in st.session_state:
         "ASML": {"Val": 11166.77, "PL": 8.95}, "RKLB": {"Val": 6495.83, "PL": 41.11},
         "NBIS": {"Val": 2955.28, "PL": 16.69}
     }
-if 'cash_balance' not in st.session_state: st.session_state.cash_balance = 2970.05
 
-# 3. Market Data & News Engine (Fixing "None" issues)
+if 'cash_balance' not in st.session_state:
+    # ตั้งค่ากระสุนเริ่มต้น ถ้าประธานเติมแล้วมันจะจำค่าใหม่ไว้
+    st.session_state.cash_balance = 2970.05
+
+if 'battle_log' not in st.session_state:
+    st.session_state.battle_log = []
+
+# 3. Market Data & News Engine
 @st.cache_data(ttl=60)
 def get_comprehensive_intel(ticker_list):
     stock_results = {}
     news_list = []
-    
-    # ดึงข่าวหุ้นที่ประธานถือ (คัดตัวหลักๆ)
+    # ดึงข่าวหุ้นหลัก
     for sym in ["MU", "NVDA", "TSM", "GOOGL"]:
         try:
             t_obj = yf.Ticker(sym)
@@ -52,25 +57,20 @@ def get_comprehensive_intel(ticker_list):
                 title = n.get('title')
                 if title:
                     news_list.append({
-                        "Tag": sym,
-                        "Title": title,
-                        "Source": n.get('publisher', 'Finance News'),
+                        "Tag": sym, "Title": title, "Source": n.get('publisher', 'Finance News'),
                         "Time": time.strftime('%H:%M', time.localtime(n.get('providerPublishTime', time.time())))
                     })
         except: continue
 
-    # ดึงข้อมูลหุ้นรายตัว
     for s in ticker_list:
         try:
             t = yf.Ticker(s)
             df = t.history(period="5d", interval="15m")
             if df.empty: continue
-            # RSI
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
             rsi = 100 - (100 / (1 + (gain / loss))).iloc[-1]
-            # Price
             curr = float(df['Close'].iloc[-1])
             chg = ((curr - t.fast_info['previous_close']) / t.fast_info['previous_close']) * 100
             stock_results[s] = {"Price": curr, "Chg": chg, "RSI": rsi}
@@ -78,7 +78,7 @@ def get_comprehensive_intel(ticker_list):
     return stock_results, news_list
 
 # --- HEADER ---
-st.markdown("<h1 style='text-align: center;'>⚡ CHAIRMAN NU : SIGNAL RESTORED ⚡</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center;'>⚡ CHAIRMAN NU : COMMANDER V14.5 ⚡</h1>", unsafe_allow_html=True)
 m_data, g_news = get_comprehensive_intel(list(st.session_state.my_assets.keys()))
 total_wealth = sum(info['Val'] * (1 + (m_data.get(t, {}).get("Chg", 0) / 100)) for t, info in st.session_state.my_assets.items())
 
@@ -89,34 +89,34 @@ with col_info:
     <span style='font-family:Orbitron; font-size:2rem; color:#00FFC8;'>{total_wealth:,.2f} THB</span>
     <span style='color:#FF4B4B; font-size:1rem;'> ({(total_wealth - 298225.25):+,.2f})</span>
     </div>""", unsafe_allow_html=True)
+
 with col_actions:
-    a1, a2 = st.columns(2)
-    with a1.popover("📥 เติมกระสุน"):
-        topup = st.number_input("จำนวนเงิน", min_value=0.0); 
-        if st.button("ยืนยัน"): st.session_state.cash_balance += topup; st.rerun()
-    with a2.popover("🎯 สั่งยิง (Fire)"):
-        target = st.selectbox("เป้าหมาย", list(st.session_state.my_assets.keys()))
-        spent = st.number_input("งบประมาณ", min_value=0.0)
-        if st.button("ยืนยันการยิง"):
-            if spent <= st.session_state.cash_balance:
-                st.session_state.cash_balance -= spent
-                st.session_state.my_assets[target]["Val"] += spent
-                st.balloons(); st.rerun()
+    c1, c2 = st.columns(2)
+    c1.metric("🔥 กระสุนคงเหลือ", f"{st.session_state.cash_balance:,.2f} THB")
+    with c2.popover("⚙️ จัดการรบ"):
+        sub_c1, sub_c2 = st.columns(2)
+        with sub_c1:
+            topup = st.number_input("เติมกระสุน", min_value=0.0)
+            if st.button("ยืนยันเติม"): st.session_state.cash_balance += topup; st.rerun()
+        with sub_c2:
+            target = st.selectbox("เลือกเป้าหมาย", list(st.session_state.my_assets.keys()))
+            spent = st.number_input("งบประมาณยิง", min_value=0.0)
+            if st.button("FIRE!"):
+                if spent <= st.session_state.cash_balance:
+                    st.session_state.cash_balance -= spent
+                    st.session_state.my_assets[target]["Val"] += spent
+                    st.session_state.battle_log.append({"Time": time.strftime("%H:%M"), "Action": f"ช้อน {target}", "Amt": spent})
+                    st.balloons(); st.rerun()
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- NEWS SECTION (Fixed) ---
+# --- NEWS SECTION ---
 st.subheader("🌐 GLOBAL & PORTFOLIO INTEL")
 if g_news:
     for n in g_news:
-        st.markdown(f"""<div class='news-card'>
-        <span class='news-tag'>{n['Tag']}</span> <b>{n['Title']}</b> 
-        <span style='color:#666; font-size:0.7rem; margin-left:10px;'>[{n['Time']}] Source: {n['Source']}</span>
-        </div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class='news-card'><span class='news-tag'>{n['Tag']}</span> <b>{n['Title']}</b> <span style='color:#666; font-size:0.7rem;'>[{n['Time']}]</span></div>""", unsafe_allow_html=True)
 else:
     st.info("📡 Scanning... หากข่าวยังไม่ขึ้น กรุณารอรีเฟรช 1 นาทีครับประธาน")
-
-st.markdown("<br>", unsafe_allow_html=True)
 
 # --- ASSETS TABLE ---
 st.subheader("📊 STRATEGIC PORTFOLIO")
@@ -127,3 +127,8 @@ for t, info in st.session_state.my_assets.items():
     mood = "🔥 ช้อนด่วน!" if rsi < 35 else "📉 เริ่มถูกแล้ว" if rsi < 45 else "⚖️ ถือรอดูเชิง"
     p_display.append({"ชื่อหุ้น": t, "มูลค่า (บาท)": f"{info['Val'] * (1 + (chg / 100)):,.2f}", "กำไรสะสม": f"{(info['PL'] + chg):+.2f}%", "ราคา ($)": f"{m_data.get(t, {}).get('Price', 0):.2f}", "วันนี้": f"{chg:+.2f}%", "RSI": f"{rsi:.1f}", "ยุทธวิธี": mood})
 st.table(pd.DataFrame(p_display))
+
+# --- BATTLE LOG ---
+if st.session_state.battle_log:
+    with st.expander("📝 บันทึกประวัติการรบ (ไม่หายเมื่อรีเฟรช)"):
+        st.table(pd.DataFrame(st.session_state.battle_log).iloc[::-1])
