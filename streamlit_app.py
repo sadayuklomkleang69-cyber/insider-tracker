@@ -115,3 +115,57 @@ except Exception as e:
 
 if st.button('🔄 อัปเดตข้อมูล'):
     st.rerun()
+import streamlit as st
+import pandas as pd
+
+# --- ส่วนคำนวณแนวรับ-แนวต้าน แบบในรูป image_fdb1db.png ---
+st.markdown("---")
+st.header("🧮 ตารางคำนวณ แนวรับ-แนวต้าน")
+
+col_calc1, col_calc2 = st.columns([1, 2])
+
+with col_calc1:
+    st.subheader("คำนวณค่าเฉลี่ยล่วงหน้า")
+    current_shares = st.number_input("จำนวนหุ้นที่มีปัจจุบัน", value=76.447)
+    avg_price = st.number_input("ราคาเฉลี่ยปัจจุบัน (USD)", value=11.77)
+    invest_more = st.number_input("ใส่เงินลงทุนเพิ่ม (USD)", value=1000)
+    
+    # คำนวณค่าเฉลี่ยใหม่เมื่อซื้อเพิ่มที่ราคาปัจจุบัน
+    # สมมติใช้ราคาปัจจุบัน (Market Price) จากหุ้นที่เลือก
+    market_price = 12.82 # ตัวอย่างราคาจากรูป
+    new_shares = invest_more / market_price
+    total_shares = current_shares + new_shares
+    new_avg = ((current_shares * avg_price) + invest_more) / total_shares
+    
+    st.metric("ราคาเฉลี่ยใหม่", f"${new_avg:.2f}", delta=f"{new_avg - avg_price:.2f}")
+
+with col_calc2:
+    st.subheader("ตารางเปรียบเทียบเป้าหมาย (R1-R3)")
+    # ดึงข้อมูลแนวรับแนวต้าน (ในที่นี้คือค่าคงที่จากรูปเป็นตัวอย่าง)
+    resistance = [11.83, 13.83, 14.77]
+    supports = [10.04, 8.67, 6.51]
+    
+    # สร้างตาราง Matrix
+    matrix_data = []
+    for s in supports:
+        row = {"แนวรับ (Buy at)": f"${s}"}
+        for i, r in enumerate(resistance):
+            profit = ((r - s) / s) * 100
+            row[f"เป้าหมาย R{i+1} (${r})"] = f"+{profit:.2f}%"
+        matrix_data.append(row)
+    
+    st.table(pd.DataFrame(matrix_data))
+
+# --- ส่วนของกราฟ (Technical Chart) ---
+st.markdown("### 📈 กราฟเทคนิคัล (Heikin Ashi / Candle)")
+st.info("ท่านสามารถใช้เครื่องมือวาดเส้นแนวรับแนวต้านได้เหมือนใน TradingView ครับ")
+# ใน Streamlit เราสามารถฝัง TradingView Widget ได้โดยตรงเพื่อให้ได้ UI เหมือนรูปเป๊ะๆ
+from streamlit_tradingview_widget import streamlit_tradingview_widget
+
+streamlit_tradingview_widget(
+    symbol="NASDAQ:NVDA", # เปลี่ยนตามหุ้นที่เลือก
+    widget_type="chart",
+    height=500,
+    interval="D",
+    theme="dark"
+)
