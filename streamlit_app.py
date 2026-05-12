@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-import plotly.express as px
 from datetime import datetime
 
 # --- 1. CONFIGURATION & STYLE ---
@@ -20,6 +19,7 @@ st.markdown("""
         border-left: 6px solid #E74C3C; margin-bottom: 10px;
     }
     .ticker-name { color: #F1C40F; font-size: 22px; font-weight: bold; }
+    .date-text { color: #888888; font-size: 14px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -37,12 +37,12 @@ def get_insider_combined():
     for ticker in watchlist:
         try:
             t = yf.Ticker(ticker)
-            # ดึงราคาสำรองแบบละเอียด (พยายาม 3 ช่องทาง)
             info = t.info
             current_p = info.get('regularMarketPrice') or info.get('currentPrice') or info.get('previousClose') or 0
             
             df = t.insider_transactions
             if df is not None and not df.empty:
+                df = df.reset_index() # กระชากวันที่ออกมาเป็นคอลัมน์
                 df['Symbol'] = ticker
                 df['Backup_Price'] = current_p
                 df.columns = [str(c).capitalize() for c in df.columns]
@@ -58,7 +58,7 @@ def get_insider_combined():
 
 # --- 4. EXECUTION ---
 try:
-    with st.spinner('จาร์วิสกำลังกระชากข้อมูลราคามาให้ท่านประธาน...'):
+    with st.spinner('จาร์วิสกำลังกระชากข้อมูลมาให้ท่านประธาน...'):
         buys_df, sells_df = get_insider_combined()
 
     col_left, col_right = st.columns(2)
@@ -69,12 +69,16 @@ try:
             buys_df = buys_df.sort_index(ascending=False).head(15)
             for _, row in buys_df.iterrows():
                 p = row.get('Price', 0)
-                # ถ้า Price เป็น 0 หรือ NaN ให้ใช้ Backup_price
                 if p == 0 or pd.isna(p): p = row.get('Backup_price', 0)
                 
+                # ฟอร์แมตวันที่ให้สวยงาม
+                raw_date = row.iloc[0]
+                date_str = raw_date.strftime('%d/%m/%Y') if hasattr(raw_date, 'strftime') else str(raw_date)[:10]
+
                 st.markdown(f"""
                 <div class="buy-card">
                     <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#2ECC71">BUY</span><br>
+                    <span class="date-text">📅 วันที่ทำรายการ: {date_str}</span><br>
                     {int(row['Shares']):,} หุ้น @ <b>${p:.2f}</b><br>
                     <b>{row['Insider']}</b> ({row['Position']})
                 </div>
@@ -89,9 +93,13 @@ try:
                 p = row.get('Price', 0)
                 if p == 0 or pd.isna(p): p = row.get('Backup_price', 0)
 
+                raw_date = row.iloc[0]
+                date_str = raw_date.strftime('%d/%m/%Y') if hasattr(raw_date, 'strftime') else str(raw_date)[:10]
+
                 st.markdown(f"""
                 <div class="sell-card">
                     <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#E74C3C">SELL</span><br>
+                    <span class="date-text">📅 วันที่ทำรายการ: {date_str}</span><br>
                     {int(row['Shares']):,} หุ้น @ <b>${p:.2f}</b><br>
                     <b>{row['Insider']}</b> ({row['Position']})
                 </div>
