@@ -2,11 +2,13 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 from datetime import datetime
-
+from streamlit_autorefresh import st_autorefresh
 # 1. ตั้งค่าหน้ากระดาษ
 st.set_page_config(page_title="Chairman Nu Command Center V7.2", layout="wide")
-
-# 2. ระบบจัดการเงินสด (บังคับให้เริ่มต้นที่ 4,000 เสมอ)
+# สั่งรีเฟรชตัวเองทุก 5 นาที (300,000 ms) เพื่อดึงราคาใหม่
+st_autorefresh(interval=300000, key="datarefresh")
+# 2. # สั่งรีเฟรชตัวเองทุก 5 นาที (300,000 ms) เพื่อดึงราคาใหม่
+ระบบจัดการเงินสด (บังคับให้เริ่มต้นที่ 4,000 เสมอ)
 if 'base_cash' not in st.session_state:
     st.session_state.base_cash = 4000
 if 'history_logs' not in st.session_state:
