@@ -42,9 +42,12 @@ def get_live_data_with_sentiment(ticker_list):
             dist_to_target = ((current_p - target) / target) * 100
             
             # วิเคราะห์อารมณ์
-            if current_rsi < 30: sentiment = "😱 กลัวสุดขีด (น่าซื้อ)"
-            elif current_rsi > 70: sentiment = "🤑 โลภเกินไป (ระวัง)"
-            else: sentiment = "😐 ปกติ"
+          # คำนวณ RSI (เช็คก่อนว่าข้อมูลพอไหม)
+        rsi_series = ta.rsi(df['Close'], length=14)
+        if rsi_series is not None and not rsi_series.empty:
+            current_rsi = rsi_series.iloc[-1]
+        else:
+            current_rsi = 50  # ถ้าคำนวณไม่ได้ ให้ค่ากลางๆ ไว้ก่อน
 
             stock_data.append({
                 "Ticker": symbol,
