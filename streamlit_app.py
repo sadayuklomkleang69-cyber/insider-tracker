@@ -10,162 +10,87 @@ st.markdown("""
     <style>
     .main { background-color: #121212; color: white; }
     h1, h2, h3 { color: #4FA3FF !important; font-family: 'Kanit', sans-serif; }
-    .buy-card {
-        background-color: #1E1E1E; padding: 20px; border-radius: 12px;
-        border-left: 6px solid #2ECC71; margin-bottom: 10px;
-    }
-    .sell-card {
-        background-color: #1E1E1E; padding: 20px; border-radius: 12px;
-        border-left: 6px solid #E74C3C; margin-bottom: 10px;
-    }
+    .buy-card { background-color: #1E1E1E; padding: 20px; border-radius: 12px; border-left: 6px solid #2ECC71; margin-bottom: 10px; }
+    .sell-card { background-color: #1E1E1E; padding: 20px; border-radius: 12px; border-left: 6px solid #E74C3C; margin-bottom: 10px; }
     .ticker-name { color: #F1C40F; font-size: 22px; font-weight: bold; }
     .date-text { color: #888888; font-size: 15px; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. HEADER ---
-st.title('🎯 ระบบจับตาปลาวาฬ: ซื้อ & ขาย')
-st.write(f"ข้อมูลสดจาก Yahoo Finance | อัปเดต: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
-
-# --- 3. WATCHLIST ---
+# --- 2. DATA FETCHING ---
 watchlist = ['NVDA', 'TSM', 'MSFT', 'PLTR', 'UPST', 'SOFI', 'GOOGL', 'AMD', 'TSLA', 'ARM', 'MU']
 
 @st.cache_data(ttl=600)
-def get_insider_combined():
-    all_buys = []
-    all_sells = []
+def get_insider_data():
+    all_buys, all_sells = [], []
+    prices = {}
     for ticker in watchlist:
         try:
             t = yf.Ticker(ticker)
-            info = t.info
-            current_p = info.get('regularMarketPrice') or info.get('currentPrice') or info.get('previousClose') or 0
-            
+            current_p = t.info.get('regularMarketPrice') or t.info.get('currentPrice') or 0
+            prices[ticker] = current_p
             df = t.insider_transactions
             if df is not None and not df.empty:
-                # ตรวจสอบว่ามีคอลัมน์วันที่หรือไม่ ถ้าไม่มีใช้ Index
-                if 'Start Date' in df.columns:
-                    df['Transaction_Date'] = pd.to_datetime(df['Start Date'])
-                elif 'Date' in df.columns:
-                    df['Transaction_Date'] = pd.to_datetime(df['Date'])
-                else:
-                    df['Transaction_Date'] = pd.to_datetime(df.index)
-                
+                df['Transaction_Date'] = pd.to_datetime(df['Start Date'] if 'Start Date' in df.columns else df.index)
                 df['Symbol'] = ticker
-                df['Backup_Price'] = current_p
-                
-                # กรองซื้อ/ขาย
-                buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
-                sells = df[df['Text'].str.contains('Sale', case=False, na=False)].copy()
-                
-                if not buys.empty: all_buys.append(buys)
-                if not sells.empty: all_sells.append(sells)
+                df['Current_Price'] = current_p
+                buys = df[df['Text'].str.contains('Purchase', case=False, na=False)]
+                sells = df[df['Text'].str.contains('Sale', case=False, na=False)]
+                all_buys.append(buys); all_sells.append(sells)
         except: continue
-    return (pd.concat(all_buys) if all_buys else pd.DataFrame(), 
-            pd.concat(all_sells) if all_sells else pd.DataFrame())
+    return pd.concat(all_buys), pd.concat(all_sells), prices
 
-# --- 4. EXECUTION ---
+# --- 3. MAIN INTERFACE ---
 try:
-    with st.spinner('จาร์วิสกำลังตรวจสอบปฏิทินปลาวาฬ...'):
-        buys_df, sells_df = get_insider_combined()
-
-    col_left, col_right = st.columns(2)
-
-    with col_left:
+    buys_df, sells_df, current_prices = get_insider_data()
+    
+    st.title('🎯 ระบบจับตาปลาวาฬ: ซื้อ & ขาย')
+    col_l, col_r = st.columns(2)
+    
+    with col_l:
         st.subheader("🟢 รายการซื้อ (สะสมของ)")
-        if not buys_df.empty:
-            buys_df = buys_df.sort_values(by='Transaction_Date', ascending=False).head(15)
-            for _, row in buys_df.iterrows():
-                p = row.get('Price', 0)
-                if p == 0 or pd.isna(p): p = row.get('Backup_Price', 0)
-                
-                d_str = row['Transaction_Date'].strftime('%d/%m/%Y')
-
-                st.markdown(f"""
-                <div class="buy-card">
-                    <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#2ECC71">BUY</span><br>
-                    <span class="date-text">📅 วันที่: {d_str}</span><br>
-                    {int(row['Shares']):,} หุ้น @ <b>${p:.2f}</b><br>
-                    <b>{row['Insider']}</b> ({row['Position']})
-                </div>
-                """, unsafe_allow_html=True)
-        else: st.info("ยังไม่มีรายการซื้อใหม่")
-
-    with col_right:
+        for _, row in buys_df.sort_values('Transaction_Date', ascending=False).head(10).iterrows():
+            st.markdown(f'<div class="buy-card"><span class="ticker-name">{row["Symbol"]}</span> | 📅 {row["Transaction_Date"].strftime("%d/%m/%Y")}<br>{int(row["Shares"]):,} หุ้น @ ${row.get("Price", 0):.2f}<br><b>{row["Insider"]}</b></div>', unsafe_allow_html=True)
+            
+    with col_r:
         st.subheader("🔴 รายการขาย (ระวังตัว)")
-        if not sells_df.empty:
-            sells_df = sells_df.sort_values(by='Transaction_Date', ascending=False).head(15)
-            for _, row in sells_df.iterrows():
-                p = row.get('Price', 0)
-                if p == 0 or pd.isna(p): p = row.get('Backup_Price', 0)
+        for _, row in sells_df.sort_values('Transaction_Date', ascending=False).head(10).iterrows():
+            st.markdown(f'<div class="sell-card"><span class="ticker-name">{row["Symbol"]}</span> | 📅 {row["Transaction_Date"].strftime("%d/%m/%Y")}<br>{int(row["Shares"]):,} หุ้น @ ${row.get("Price", 0):.2f}<br><b>{row["Insider"]}</b></div>', unsafe_allow_html=True)
 
-                d_str = row['Transaction_Date'].strftime('%d/%m/%Y')
+    # --- 4. DYNAMIC CALCULATOR (NEW!) ---
+    st.markdown("---")
+    st.header("🧮 ตารางคำนวณอัจฉริยะ (เลือกหุ้นได้)")
+    
+    selected_stock = st.selectbox("เลือกหุ้นที่ท่านต้องการวางแผน:", watchlist)
+    live_price = current_prices.get(selected_stock, 0)
+    
+    col_c1, col_c2 = st.columns([1, 2])
+    with col_c1:
+        st.subheader(f"คำนวณถัวเฉลี่ย: {selected_stock}")
+        st.write(f"ราคาตลาดปัจจุบัน: **${live_price:.2f}**")
+        cur_sh = st.number_input("หุ้นที่มีปัจจุบัน", value=100.0)
+        cur_avg = st.number_input("ต้นทุนเดิม (USD)", value=live_price)
+        add_inv = st.number_input("เงินที่จะลงเพิ่ม (USD)", value=1000.0)
+        
+        new_sh = add_inv / live_price
+        total_sh = cur_sh + new_sh
+        new_avg_cost = ((cur_sh * cur_avg) + add_inv) / total_sh
+        st.metric("ราคาเฉลี่ยใหม่ถ้าซื้อตอนนี้", f"${new_avg_cost:.2f}", f"{new_avg_cost - cur_avg:.2f}")
 
-                st.markdown(f"""
-                <div class="sell-card">
-                    <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#E74C3C">SELL</span><br>
-                    <span class="date-text">📅 วันที่: {d_str}</span><br>
-                    {int(row['Shares']):,} หุ้น @ <b>${p:.2f}</b><br>
-                    <b>{row['Insider']}</b> ({row['Position']})
-                </div>
-                """, unsafe_allow_html=True)
-        else: st.success("ปลอดภัย! ยังไม่มีปลาวาฬเทขายในกลุ่มนี้ครับ")
+    with col_c2:
+        st.subheader("เป้าหมายกำไรตามแนวต้าน")
+        # คำนวณแนวรับ-ต้านจำลองจากราคาปัจจุบัน (หรือปรับแต่งเองได้)
+        res = [live_price * 1.1, live_price * 1.25, live_price * 1.5]
+        sup = [live_price * 0.9, live_price * 0.8, live_price * 0.7]
+        
+        matrix = []
+        for s in sup:
+            row = {"แนวรับที่รอช้อน": f"${s:.2f}"}
+            for i, r in enumerate(res):
+                upside = ((r - s) / s) * 100
+                row[f"เป้า R{i+1} (${r:.2f})"] = f"+{upside:.2f}%"
+            matrix.append(row)
+        st.table(pd.DataFrame(matrix))
 
 except Exception as e:
-    st.error(f"ระบบกำลังปรับปรุง: {e}")
-
-if st.button('🔄 อัปเดตข้อมูล'):
-    st.rerun()
-import streamlit as st
-import pandas as pd
-
-# --- ส่วนคำนวณแนวรับ-แนวต้าน แบบในรูป image_fdb1db.png ---
-st.markdown("---")
-st.header("🧮 ตารางคำนวณ แนวรับ-แนวต้าน")
-
-col_calc1, col_calc2 = st.columns([1, 2])
-
-with col_calc1:
-    st.subheader("คำนวณค่าเฉลี่ยล่วงหน้า")
-    current_shares = st.number_input("จำนวนหุ้นที่มีปัจจุบัน", value=76.447)
-    avg_price = st.number_input("ราคาเฉลี่ยปัจจุบัน (USD)", value=11.77)
-    invest_more = st.number_input("ใส่เงินลงทุนเพิ่ม (USD)", value=1000)
-    
-    # คำนวณค่าเฉลี่ยใหม่เมื่อซื้อเพิ่มที่ราคาปัจจุบัน
-    # สมมติใช้ราคาปัจจุบัน (Market Price) จากหุ้นที่เลือก
-    market_price = 12.82 # ตัวอย่างราคาจากรูป
-    new_shares = invest_more / market_price
-    total_shares = current_shares + new_shares
-    new_avg = ((current_shares * avg_price) + invest_more) / total_shares
-    
-    st.metric("ราคาเฉลี่ยใหม่", f"${new_avg:.2f}", delta=f"{new_avg - avg_price:.2f}")
-
-with col_calc2:
-    st.subheader("ตารางเปรียบเทียบเป้าหมาย (R1-R3)")
-    # ดึงข้อมูลแนวรับแนวต้าน (ในที่นี้คือค่าคงที่จากรูปเป็นตัวอย่าง)
-    resistance = [11.83, 13.83, 14.77]
-    supports = [10.04, 8.67, 6.51]
-    
-    # สร้างตาราง Matrix
-    matrix_data = []
-    for s in supports:
-        row = {"แนวรับ (Buy at)": f"${s}"}
-        for i, r in enumerate(resistance):
-            profit = ((r - s) / s) * 100
-            row[f"เป้าหมาย R{i+1} (${r})"] = f"+{profit:.2f}%"
-        matrix_data.append(row)
-    
-    st.table(pd.DataFrame(matrix_data))
-
-# --- ส่วนของกราฟ (Technical Chart) ---
-st.markdown("### 📈 กราฟเทคนิคัล (Heikin Ashi / Candle)")
-st.info("ท่านสามารถใช้เครื่องมือวาดเส้นแนวรับแนวต้านได้เหมือนใน TradingView ครับ")
-# ใน Streamlit เราสามารถฝัง TradingView Widget ได้โดยตรงเพื่อให้ได้ UI เหมือนรูปเป๊ะๆ
-from streamlit_tradingview_widget import streamlit_tradingview_widget
-
-streamlit_tradingview_widget(
-    symbol="NASDAQ:NVDA", # เปลี่ยนตามหุ้นที่เลือก
-    widget_type="chart",
-    height=500,
-    interval="D",
-    theme="dark"
-)
+    st.error(f"กำลังดึงข้อมูล: {e}")
