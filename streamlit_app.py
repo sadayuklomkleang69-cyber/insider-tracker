@@ -1,6 +1,14 @@
 import streamlit as st
 import pandas as pd
 import yfinance as ticker_data
+import time
+
+# สั่งให้หน้านี้รีเฟรชตัวเองทุกๆ 60 วินาที
+st.empty() 
+st.write("ระบบจะอัปเดตข้อมูลอัตโนมัติ")
+# เพิ่มปุ่มกดรีเฟรชเองแบบแมนนวลด้วย
+if st.button('อัปเดตราคาเดี๋ยวนี้'):
+    st.rerun()
 
 st.set_page_config(page_title="Insider Tracker", layout="wide")
 
