@@ -5,7 +5,7 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V9.0", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V9.1", layout="wide")
 st_autorefresh(interval=300000, key="datarefresh")
 
 # 2. Initializing Systems
@@ -47,19 +47,20 @@ def get_stock_data(ticker_list):
         except: continue
     return pd.DataFrame(stock_data)
 
-def get_live_news(ticker_list):
+def get_live_news_brief(ticker_list):
     all_news = []
-    # ดึงข่าวหุ้น 3 ตัวแรกที่มีการเคลื่อนไหวสูงมาโชว์เพื่อประหยัดเวลาโหลด
+    # ดึงข่าวหุ้น 5 ตัวแรกในลิสต์
     for symbol in ticker_list[:5]:
         try:
             ticker_obj = yf.Ticker(symbol)
             news_items = ticker_obj.news
-            for item in news_items[:2]: # เอา 2 ข่าวล่าสุดต่อหุ้นหนึ่งตัว
+            if news_items:
+                item = news_items[0] # เอาข่าวล่าสุดอันเดียวที่สดที่สุด
                 all_news.append({
                     "Ticker": symbol,
                     "Title": item.get('title'),
+                    "Summary": item.get('summary', 'ไม่มีบทสรุปเพิ่มเติมในขณะนี้'),
                     "Publisher": item.get('publisher'),
-                    "Link": item.get('link'),
                     "Time": time.ctime(item.get('providerPublishTime'))
                 })
         except: continue
@@ -80,7 +81,7 @@ with st.sidebar.expander("🎯 ยิงกระสุน (Buy Order)"):
             st.rerun()
 
 # --- MAIN ---
-st.title("🎯 Chairman Nu Command Center V9.0")
+st.title("🎯 Chairman Nu Command Center V9.1")
 
 # ส่วนที่ 1: ตารางหุ้น
 data = get_stock_data(tickers)
@@ -90,23 +91,29 @@ if not data.empty:
 
 st.markdown("---")
 
-# ส่วนที่ 2: ข่าววงในแบบ Real-time (Auto-Fetch)
-st.subheader("📰 Real-time Strategic Intel (Auto-Feed)")
-news_data = get_live_news(tickers)
+# ส่วนที่ 2: Intelligence Briefing (บอกรายละเอียดต่อวันเลย ไม่ต้องกดเข้า)
+st.subheader("📰 Daily Intelligence Briefing")
+news_data = get_live_news_brief(tickers)
+
 if news_data:
     for news in news_data:
-        with st.expander(f"**[{news['Ticker']}] {news['Title']}**"):
-            st.write(f"📢 **Publisher:** {news['Publisher']}")
-            st.write(f"🕒 **Time:** {news['Time']}")
-            st.write(f"🔗 [อ่านข่าวฉบับเต็ม]({news['Link']})")
+        # ใช้ st.info หรือ st.warning เพื่อทำเป็นกล่องข้อความที่โชว์เลย
+        with st.container():
+            col_a, col_b = st.columns([1, 4])
+            with col_a:
+                st.subheader(f"[{news['Ticker']}]")
+                st.caption(f"{news['Time']}")
+            with col_b:
+                st.markdown(f"### {news['Title']}")
+                st.write(f"{news['Summary']}")
+                st.caption(f"Source: {news['Publisher']}")
+            st.markdown("---")
 else:
-    st.info("กำลังรอข้อมูลข่าวล่าสุดจาก Wall Street...")
-
-st.markdown("---")
+    st.info("กำลังสแกนหาข่าววงในล่าสุดจากตลาดหลักทรัพย์...")
 
 # ส่วนที่ 3: Battle Log
 st.subheader("📜 Battle Log")
 if st.session_state.battle_log:
     st.table(pd.DataFrame(st.session_state.battle_log).iloc[::-1])
 
-st.caption("© 2026 Chairman Nu Intelligence System • Real-time News API Integrated")
+st.caption("© 2026 Chairman Nu Intelligence System • Intelligence Briefing Mode Active")
