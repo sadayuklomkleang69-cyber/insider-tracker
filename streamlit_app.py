@@ -42,6 +42,12 @@ def get_yfinance_insider():
                 buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
                 if not buys.empty:
                     buys['Symbol'] = ticker
+                    # ดึงราคาปัจจุบันมาสำรองไว้
+                    try:
+                        current_price = t.fast_info['lastPrice']
+                    except:
+                        current_price = 0
+                    buys['Current_Price'] = current_price
                     buys = buys.reset_index()
                     all_data.append(buys)
         except:
@@ -54,7 +60,6 @@ try:
         final_df = get_yfinance_insider()
 
     if not final_df.empty:
-        # ปรับชื่อคอลัมน์ให้เป็นมาตรฐานเดียวกันเพื่อป้องกัน Error
         final_df.columns = [str(c).capitalize() for c in final_df.columns]
         
         col_left, col_right = st.columns([1, 2])
@@ -69,18 +74,18 @@ try:
 
         with col_right:
             st.subheader("💎 รายการซื้อล่าสุด (10 อันดับ)")
-            # เรียงตามวันที่ล่าสุด (ใช้คอลัมน์แรกสุดที่เป็นวันที่)
             final_df = final_df.sort_values(by=final_df.columns[0], ascending=False).head(10)
             
             for _, row in final_df.iterrows():
-                # ดึงข้อมูลแบบปลอดภัย
                 s_symbol = row.get('Symbol', 'N/A')
                 s_shares = row.get('Shares', 0)
+                # ถ้าราคาซื้อเป็น 0 ให้ใช้ราคาปัจจุบันแทน
                 s_price = row.get('Price', 0)
+                if s_price == 0:
+                    s_price = row.get('Current_price', 0)
+                
                 s_insider = row.get('Insider', 'Unknown')
                 s_pos = row.get('Position', 'Insider')
-                
-                # จัดการเรื่องวันที่
                 raw_date = row.iloc[0]
                 date_str = raw_date.strftime('%Y-%m-%d') if hasattr(raw_date, 'strftime') else str(raw_date)
                 
