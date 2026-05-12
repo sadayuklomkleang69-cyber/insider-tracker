@@ -3,7 +3,6 @@ import pandas as pd
 import yfinance as yf
 from datetime import datetime
 from streamlit_autorefresh import st_autorefresh
-import pandas_ta as ta  # ระบบคำนวณอารมณ์ตลาด
 
 # 1. ตั้งค่าหน้ากระดาษ
 st.set_page_config(page_title="Chairman Nu Command Center V7.2", layout="wide")
