@@ -5,7 +5,7 @@ import requests
 from datetime import datetime
 
 # --- 1. CONFIGURATION & STYLE ---
-st.set_page_config(page_title="Chairman Nu Command Center V4.1", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V4.2", layout="wide")
 
 # รหัสของท่านประธาน (จาร์วิสล็อกไว้ให้แล้ว)
 LINE_ACCESS_TOKEN = "Tt4FXXuT6v9qP2m9p9p9p9p9p9p9p9p9" 
@@ -28,15 +28,19 @@ def fetch_all_data():
     for ticker in watchlist:
         try:
             t = yf.Ticker(ticker)
-            prices[ticker] = t.info.get('regularMarketPrice') or t.info.get('currentPrice') or 0
+            live_p = t.info.get('regularMarketPrice') or t.info.get('currentPrice') or 0
+            prices[ticker] = live_p
             df = t.insider_transactions
             if df is not None and not df.empty:
                 df['Date'] = pd.to_datetime(df['Start Date'] if 'Start Date' in df.columns else df.index)
                 df['Symbol'] = ticker
+                # แก้ไขราคา 0.00 ให้เป็นราคาตลาดปัจจุบัน
+                df['DisplayPrice'] = df['Price'].apply(lambda x: live_p if x == 0 or pd.isna(x) else x)
+                
                 all_buys.append(df[df['Text'].str.contains('Purchase', case=False, na=False)])
                 all_sells.append(df[df['Text'].str.contains('Sale', case=False, na=False)])
         except: continue
-    return pd.concat(all_buys), pd.concat(all_sells), prices
+    return pd.concat(all_buys) if all_buys else pd.DataFrame(), pd.concat(all_sells) if all_sells else pd.DataFrame(), prices
 
 # --- 3. SIDEBAR NAVIGATION ---
 with st.sidebar:
@@ -51,24 +55,32 @@ try:
 
     # --- 4. PAGE: WHALE TRACKER ---
     if menu == "🐳 ระบบจับตาปลาวาฬ":
-        st.header("🐳 ระบบจับตาปลาวาฬ: ใครซื้อ? ใครขาย?")
+        st.header("🐳 รายงานปลาวาฬขยับตัว (โหมดโชว์รายละเอียด)")
         col1, col2 = st.columns(2)
         
         with col1:
-            st.subheader("🟢 รายการซื้อ (สะสมของ)")
-            for _, row in buys_df.sort_values('Date', ascending=False).head(12).iterrows():
-                with st.expander(f"✅ {row['Symbol']} | {row['Insider']}"):
-                    st.write(f"**วันที่:** {row['Date'].strftime('%d/%m/%y')}")
-                    st.write(f"**จำนวน:** {int(row['Shares']):,} หุ้น @ ${row.get('Price', 0):.2f}")
-                    st.write(f"**ตำแหน่ง:** {row.get('Position', 'N/A')}")
+            st.subheader("🟢 ฝั่งซื้อ (Insiders Buying)")
+            if not buys_df.empty:
+                for _, row in buys_df.sort_values('Date', ascending=False).head(12).iterrows():
+                    st.success(f"""
+                    **หุ้น: {row['Symbol']}** | {row['Date'].strftime('%d/%m/%y')}
+                    * **ผู้ซื้อ:** {row['Insider']}
+                    * **ตำแหน่ง:** {row.get('Position', 'N/A')}
+                    * **จำนวน:** {int(row['Shares']):,} หุ้น @ **${row['DisplayPrice']:.2f}**
+                    """)
+            else: st.write("ไม่พบข้อมูลการซื้อ")
         
         with col2:
-            st.subheader("🔴 รายการขาย (ระวังตัว)")
-            for _, row in sells_df.sort_values('Date', ascending=False).head(12).iterrows():
-                with st.expander(f"⚠️ {row['Symbol']} | {row['Insider']}"):
-                    st.write(f"**วันที่:** {row['Date'].strftime('%d/%m/%y')}")
-                    st.write(f"**จำนวน:** {int(row['Shares']):,} หุ้น @ ${row.get('Price', 0):.2f}")
-                    st.write(f"**ตำแหน่ง:** {row.get('Position', 'N/A')}")
+            st.subheader("🔴 ฝั่งขาย (Insiders Selling)")
+            if not sells_df.empty:
+                for _, row in sells_df.sort_values('Date', ascending=False).head(12).iterrows():
+                    st.error(f"""
+                    **หุ้น: {row['Symbol']}** | {row['Date'].strftime('%d/%m/%y')}
+                    * **ผู้ขาย:** {row['Insider']}
+                    * **ตำแหน่ง:** {row.get('Position', 'N/A')}
+                    * **จำนวน:** {int(row['Shares']):,} หุ้น @ **${row['DisplayPrice']:.2f}**
+                    """)
+            else: st.write("ไม่พบข้อมูลการขาย")
 
     # --- 5. PAGE: CALCULATOR ---
     elif menu == "🧮 ตารางคำนวณอัจฉริยะ":
@@ -80,7 +92,7 @@ try:
             dime_shares = st.number_input("จำนวนหุ้นใน Dime", value=0.0)
             dime_avg = st.number_input("ต้นทุนเดิม (USD)", value=live_p)
             top_up = st.number_input("เงินที่ลงทุนเพิ่ม (USD)", value=1000.0)
-            new_sh = top_up / live_p
+            new_sh = top_up / live_p if live_p > 0 else 0
             final_avg = ((dime_shares * dime_avg) + top_up) / (dime_shares + new_sh) if (dime_shares + new_sh) > 0 else 0
             st.metric("ราคาเฉลี่ยใหม่", f"${final_avg:.2f}", f"{final_avg - dime_avg:.2f}")
 
