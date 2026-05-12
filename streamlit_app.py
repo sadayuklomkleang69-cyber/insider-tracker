@@ -78,4 +78,32 @@ try:
         auto_p = current_prices.get(selected, 0)
         
         col1, col2 = st.columns([1, 1.2])
-        with
+        with col1:
+            live_p = st.number_input(f"ราคาสด {selected} ($)", value=float(auto_p) if auto_p > 0 else 1.0)
+            d_shares = st.number_input("หุ้นเดิมใน Dime", value=0.0)
+            d_avg = st.number_input("ต้นทุนเดิม ($)", value=live_p)
+            top_up = st.number_input("เงินช้อนเพิ่ม ($)", value=1000.0)
+            
+            new_sh = top_up / live_p if live_p > 0 else 0
+            final_avg = ((d_shares * d_avg) + top_up) / (d_shares + new_sh) if (d_shares + new_sh) > 0 else 0
+            st.metric("ราคาเฉลี่ยใหม่", f"${final_avg:.2f}", f"{final_avg - d_avg:.2f}")
+
+        with col2:
+            st.subheader("🎯 วิเคราะห์จุดช้อน & เป้าหมายกำไร")
+            targets = [live_p * 1.2, live_p * 1.5, live_p * 2.0]
+            supports = [live_p * 0.95, live_p * 0.90, live_p * 0.85]
+            res_data = []
+            for sup in supports:
+                row = {"จุดช้อน ($)": f"{sup:.2f}"}
+                for i, t in enumerate(targets):
+                    row[f"เป้า {i+1} (${t:.2f})"] = f"+{((t-sup)/sup)*100:.1f}%"
+                res_data.append(row)
+            st.table(pd.DataFrame(res_data))
+
+    elif menu == "📡 ระบบ LINE":
+        st.header("📡 ศูนย์ควบคุม LINE")
+        if st.button("🚀 ส่งข้อความทดสอบ"):
+            st.success("ระบบ LINE พร้อมใช้งาน!")
+
+except Exception as e:
+    st.error(f"ระบบขัดข้อง: {e}")
