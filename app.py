@@ -5,19 +5,19 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V14.0", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V14.1", layout="wide")
 st_autorefresh(interval=60000, key="datarefresh")
 
 # --- UI ENHANCEMENT (ADVANCED NEON CSS) ---
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Kanit:wght@300;500&display=swap');
     
     .main { background-color: #050505; }
     
     /* Neon Text & Titles */
     h1, h2, h3 { 
-        font-family: 'Orbitron', sans-serif; 
+        font-family: 'Orbitron', 'Kanit', sans-serif; 
         color: #00FFC8; 
         text-shadow: 0 0 10px rgba(0, 255, 200, 0.5);
     }
@@ -37,7 +37,6 @@ st.markdown("""
         border-left: 5px solid #00FFC8;
         padding: 20px;
         border-radius: 10px;
-        box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
     }
 
     /* Modern Table Styling */
@@ -47,15 +46,15 @@ st.markdown("""
         overflow: hidden;
     }
     
-    th { background-color: #101418 !important; color: #00FFC8 !important; font-family: 'Orbitron', sans-serif; }
-    td { background-color: #050505 !important; color: #E6EDF3 !important; border-bottom: 0.1px solid #30363D !important; }
+    th { background-color: #101418 !important; color: #00FFC8 !important; font-family: 'Kanit', sans-serif; }
+    td { background-color: #050505 !important; color: #E6EDF3 !important; font-family: 'Kanit', sans-serif; border-bottom: 0.1px solid #30363D !important; }
 
     /* Button Neon Effect */
     .stButton>button { 
         background: linear-gradient(45deg, #00FFC8, #0088FF);
         color: #000000; 
         border-radius: 8px; 
-        font-family: 'Orbitron', sans-serif;
+        font-family: 'Kanit', sans-serif;
         font-weight: bold; 
         border: none;
         box-shadow: 0 0 15px rgba(0, 255, 200, 0.3);
@@ -66,11 +65,6 @@ st.markdown("""
         box-shadow: 0 0 25px rgba(0, 255, 200, 0.6);
         color: #FFFFFF;
     }
-
-    /* Status Badge Colors */
-    .buy-now { color: #00FFC8; font-weight: bold; text-shadow: 0 0 5px #00FFC8; }
-    .cheap { color: #FFFF00; font-weight: bold; }
-    .hold { color: #888888; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -113,7 +107,7 @@ def get_market_data(ticker_list):
 
 # --- HEADER SECTION ---
 st.markdown("<h1 style='text-align: center;'>⚡ CHAIRMAN NU : NEON OVERDRIVE ⚡</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #888;'>SYSTEM VERSION 14.0 | STATUS: ACTIVE</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center; color: #888;'>เวอร์ชัน 14.1 | สถานะ: กำลังเฝ้าพอร์ต</p>", unsafe_allow_html=True)
 
 m_data = get_market_data(list(st.session_state.my_assets.keys()))
 total_wealth = sum(info['Val'] * (1 + (m_data.get(t, {}).get("Chg", 0) / 100)) for t, info in st.session_state.my_assets.items())
@@ -122,19 +116,19 @@ col_info, col_actions = st.columns([3, 2])
 
 with col_info:
     c1, c2 = st.columns(2)
-    c1.metric("💰 TOTAL ASSETS", f"{total_wealth:,.2f} THB", delta=f"{(total_wealth - 298225.25):+,.2f}")
-    c2.metric("🔥 AMMO LEFT", f"{st.session_state.cash_balance:,.2f} THB")
+    c1.metric("💰 มูลค่ารวมพอร์ต", f"{total_wealth:,.2f} THB", delta=f"{(total_wealth - 298225.25):+,.2f}")
+    c2.metric("🔥 กระสุนคงเหลือ", f"{st.session_state.cash_balance:,.2f} THB")
 
 with col_actions:
     st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
     a1, a2 = st.columns(2)
-    with a1.popover("📥 ADD AMMO"):
-        topup = st.number_input("Amount", min_value=0.0)
-        if st.button("PROCEED TOP-UP"): st.session_state.cash_balance += topup; st.rerun()
-    with a2.popover("🎯 EXECUTE FIRE"):
-        target = st.selectbox("Select Asset", list(st.session_state.my_assets.keys()))
-        spent = st.number_input("Budget (THB)", min_value=0.0)
-        if st.button("CONFIRM EXECUTION"):
+    with a1.popover("📥 เติมกระสุน"):
+        topup = st.number_input("จำนวนเงิน", min_value=0.0)
+        if st.button("ยืนยันการเติม"): st.session_state.cash_balance += topup; st.rerun()
+    with a2.popover("🎯 สั่งยิง (Fire)"):
+        target = st.selectbox("เลือกเป้าหมาย", list(st.session_state.my_assets.keys()))
+        spent = st.number_input("งบประมาณ (THB)", min_value=0.0)
+        if st.button("กดยืนยันการยิง"):
             if spent <= st.session_state.cash_balance:
                 st.session_state.cash_balance -= spent
                 st.session_state.my_assets[target]["Val"] += spent
@@ -144,28 +138,38 @@ with col_actions:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # --- SECTION 1: ASSETS TABLE ---
-st.subheader("📊 TACTICAL PORTFOLIO DATA")
+st.subheader("📊 ข้อมูลวิเคราะห์พอร์ตรายวินาที")
 p_display = []
 for t, info in st.session_state.my_assets.items():
     chg = m_data.get(t, {}).get("Chg", 0)
     rsi = m_data.get(t, {}).get("RSI", 0)
-    mood = "🔥 BUY NOW" if rsi < 35 else "📉 CHEAP" if rsi < 45 else "⚖️ HOLD"
+    
+    # 🎯 ยุทธวิธีภาษาไทย
+    if rsi < 35:
+        mood = "🔥 ช้อนด่วน!"
+    elif rsi < 45:
+        mood = "📉 เริ่มถูกแล้ว"
+    elif rsi > 70:
+        mood = "⚠️ ระวัง! ของแพง"
+    else:
+        mood = "⚖️ ถือรอดูเชิง"
+        
     p_display.append({
-        "SYMBOL": t,
-        "VALUE (THB)": f"{info['Val'] * (1 + (chg / 100)):,.2f}",
-        "TOTAL P/L": f"{(info['PL'] + chg):+.2f}%",
-        "PRICE ($)": f"{m_data.get(t, {}).get('Price', 0):.2f}",
-        "24H CHG": f"{chg:+.2f}%",
+        "ชื่อหุ้น": t,
+        "มูลค่าปัจจุบัน (บาท)": f"{info['Val'] * (1 + (chg / 100)):,.2f}",
+        "กำไรสะสม": f"{(info['PL'] + chg):+.2f}%",
+        "ราคาตลาด ($)": f"{m_data.get(t, {}).get('Price', 0):.2f}",
+        "วันนี้": f"{chg:+.2f}%",
         "RSI": f"{rsi:.1f}",
-        "STRATEGY": mood
+        "ยุทธวิธี": mood
     })
 
 st.table(pd.DataFrame(p_display))
 
 # --- SECTION 2: BATTLE LOG ---
 if st.session_state.battle_log:
-    with st.expander("📝 RECENT TRANSACTIONS"):
+    with st.expander("📝 บันทึกการรบล่าสุด"):
         st.table(pd.DataFrame(st.session_state.battle_log).iloc[::-1])
 
 st.markdown("<hr style='border: 1px solid #30363D;'>", unsafe_allow_html=True)
-st.caption("NEON OVERDRIVE INTERFACE | DEPLOYED BY JARVIS v14.0")
+st.caption("ระบบอำนวยการรบของประธานนุ | พัฒนาโดย Jarvis AI v14.1")
