@@ -5,7 +5,7 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V8.3", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V8.4", layout="wide")
 st_autorefresh(interval=300000, key="datarefresh")
 
 # 2. Initializing Ammo System
@@ -14,7 +14,7 @@ if 'cash_balance' not in st.session_state:
 if 'battle_log' not in st.session_state:
     st.session_state.battle_log = []
 
-# 3. Target Data (ถอด TSLA, AAPL, SOFI, UPST ออกแล้วตามสั่ง)
+# 3. Target Data (ถอด META ออกแล้วตามสั่งครับ)
 target_prices = {
     "NBIS": 170.0,
     "MU": 730.0, 
@@ -29,7 +29,6 @@ target_prices = {
     "ARM": 200.0, 
     "AMD": 430.0, 
     "RKLB": 110.0,
-    "META": 580.0, 
     "SPY": 530.0
 }
 tickers = list(target_prices.keys())
@@ -38,7 +37,7 @@ tickers = list(target_prices.keys())
 def calculate_rsi_manual(series, period=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = ( - delta.where(delta < 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
@@ -105,7 +104,7 @@ with st.sidebar.expander("🎯 คำนวณวิถีกระสุน (Bu
             st.error("กระสุนไม่พอ!")
 
 # --- MAIN CONTENT ---
-st.title("🎯 Chairman Nu Command Center V8.3")
+st.title("🎯 Chairman Nu Command Center V8.4")
 st.write(f"กำลังติดตามหุ้นเป้าหมาย {len(tickers)} ตัว")
 
 data = get_data(tickers)
@@ -132,4 +131,4 @@ with col2:
         summary = pd.DataFrame(st.session_state.battle_log).groupby("Ticker")["Spent"].sum()
         st.bar_chart(summary)
 
-st.caption("© 2026 Chairman Nu Intelligence System • Targeted Tracking Active")
+st.caption("© 2026 Chairman Nu Intelligence System • META Removed")
