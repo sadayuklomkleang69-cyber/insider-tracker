@@ -4,8 +4,8 @@ import yfinance as yf
 import requests
 from datetime import datetime
 
-# --- 1. CONFIGURATION & DARK UI ---
-st.set_page_config(page_title="Chairman Nu Command Center V5", layout="wide")
+# --- 1. CONFIGURATION & DARK UI (ธีมที่ท่านประธานชอบ) ---
+st.set_page_config(page_title="Chairman Nu Command Center V5.1", layout="wide")
 
 st.markdown("""
     <style>
@@ -51,12 +51,12 @@ def fetch_all_data():
                 if not buys.empty: all_buys.append(buys)
                 if not sells.empty: all_sells.append(sells)
         except: continue
-        
-    buy_df = pd.concat(all_buys) if all_buys else pd.DataFrame()
-    sell_df = pd.concat(all_sells) if all_sells else pd.DataFrame()
-    return buy_df, sell_df, prices
+    
+    final_buys = pd.concat(all_buys) if all_buys else pd.DataFrame()
+    final_sells = pd.concat(all_sells) if all_sells else pd.DataFrame()
+    return final_buys, final_sells, prices
 
-# --- 3. UI & LOGIC ---
+# --- 3. UI & NAVIGATION ---
 with st.sidebar:
     st.title("👨‍✈️ Command Center")
     menu = st.radio("เลือกโหมด:", ["🐳 ระบบจับตาปลาวาฬ", "🧮 ตารางคำนวณอัจฉริยะ", "📡 ระบบ LINE"])
@@ -67,33 +67,20 @@ try:
 
     if menu == "🐳 ระบบจับตาปลาวาฬ":
         st.header("🐳 รายงานความเคลื่อนไหวคนใน (Real-time)")
-        
-        if buys_df.empty and sells_df.empty:
-            st.warning("⚠️ ตอนนี้ระบบของ yfinance ไม่ปล่อยข้อมูลออกมา หรือไม่มีคนในขยับตัวในช่วงนี้ครับ (กดรีเฟรชหน้าเว็บใหม่ในอีก 5 นาที)")
-        else:
-            c1, c2 = st.columns(2)
-            with c1:
-                st.subheader("🟢 ฝั่งซื้อ (Insiders Buying)")
-                if not buys_df.empty:
-                    for _, row in buys_df.sort_values('Date', ascending=False).head(15).iterrows():
-                        st.markdown(f'''
-                        <div class="buy-card">
-                            <b>{row['Symbol']}</b> | {row['Date'].strftime('%d/%m/%y')}<br>
-                            ผู้ซื้อ: {row['Insider']} ({row.get('Position', 'N/A')})<br>
-                            จำนวน: {int(row['Shares']):,} หุ้น @ <b>${row['DisplayPrice']:.2f}</b>
-                        </div>
-                        ''', unsafe_allow_html=True)
-            with c2:
-                st.subheader("🔴 ฝั่งขาย (Insiders Selling)")
-                if not sells_df.empty:
-                    for _, row in sells_df.sort_values('Date', ascending=False).head(15).iterrows():
-                        st.markdown(f'''
-                        <div class="sell-card">
-                            <b>{row['Symbol']}</b> | {row['Date'].strftime('%d/%m/%y')}<br>
-                            ผู้ขาย: {row['Insider']} ({row.get('Position', 'N/A')})<br>
-                            จำนวน: {int(row['Shares']):,} หุ้น @ <b>${row['DisplayPrice']:.2f}</b>
-                        </div>
-                        ''', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("🟢 รายการซื้อ (Insiders Buying)")
+            if not buys_df.empty:
+                for _, row in buys_df.sort_values('Date', ascending=False).head(15).iterrows():
+                    st.markdown(f'<div class="buy-card"><b>{row["Symbol"]}</b> | {row["Date"].strftime("%d/%m/%y")}<br>ผู้ซื้อ: {row["Insider"]} ({row.get("Position", "N/A")})<br>จำนวน: {int(row["Shares"]):,} หุ้น @ <b>${row["DisplayPrice"]:.2f}</b></div>', unsafe_allow_html=True)
+            else: st.warning("ไม่พบรายการซื้อในช่วงนี้")
+            
+        with c2:
+            st.subheader("🔴 รายการขาย (Insiders Selling)")
+            if not sells_df.empty:
+                for _, row in sells_df.sort_values('Date', ascending=False).head(15).iterrows():
+                    st.markdown(f'<div class="sell-card"><b>{row["Symbol"]}</b> | {row["Date"].strftime("%d/%m/%y")}<br>ผู้ขาย: {row["Insider"]} ({row.get("Position", "N/A")})<br>จำนวน: {int(row["Shares"]):,} หุ้น @ <b>${row["DisplayPrice"]:.2f}</b></div>', unsafe_allow_html=True)
+            else: st.warning("ไม่พบรายการขายในช่วงนี้")
 
     elif menu == "🧮 ตารางคำนวณอัจฉริยะ":
         st.header("🧮 ตารางคำนวณอัจฉริยะ (Sync Dime)")
@@ -102,26 +89,22 @@ try:
         
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f'<div class="metric-box">ราคาตลาดปัจจุบัน: <b>${live_p:.2f}</b></div><br>', unsafe_allow_html=True)
-            dime_shares = st.number_input("จำนวนหุ้นใน Dime", value=0.0)
-            dime_avg = st.number_input("ต้นทุนเดิม (USD)", value=live_p)
+            st.markdown(f'<div class="metric-box">ราคาปัจจุบัน: <b>${live_p:.2f}</b></div><br>', unsafe_allow_html=True)
+            d_shares = st.number_input("หุ้นใน Dime", value=0.0)
+            d_avg = st.number_input("ต้นทุนเดิม (USD)", value=live_p)
             top_up = st.number_input("เงินที่ลงทุนเพิ่ม (USD)", value=1000.0)
             
             new_sh = top_up / live_p if live_p > 0 else 0
-            final_avg = ((dime_shares * dime_avg) + top_up) / (dime_shares + new_sh) if (dime_shares + new_sh) > 0 else 0
-            st.metric("ราคาเฉลี่ยใหม่", f"${final_avg:.2f}", f"{final_avg - dime_avg:.2f}")
+            final_avg = ((d_shares * d_avg) + top_up) / (d_shares + new_sh) if (d_shares + new_sh) > 0 else 0
+            st.metric("ราคาเฉลี่ยใหม่", f"${final_avg:.2f}", f"{final_avg - d_avg:.2f}")
 
     elif menu == "📡 ระบบ LINE":
         st.header("📡 ศูนย์ควบคุม LINE")
         st.write(f"**สถานะ:** เชื่อมต่อกับ User ID: `{USER_ID}`")
-        test_msg = st.text_input("พิมพ์ข้อความทดสอบ:", "จาร์วิสรายงานตัวครับท่านประธานนุ!")
         if st.button("🚀 ส่งข้อความทดสอบ"):
-            res = send_line_message(test_msg)
-            if res and res.status_code == 200:
-                st.success("ส่งเรียบร้อย! ลองเช็คในมือถือท่านประธานดูครับ")
-                st.balloons()
-            else:
-                st.error("ส่งไม่สำเร็จ ตรวจสอบสถานะอีกครั้งครับ")
+            res = send_line_message("จาร์วิสรายงานตัว! ระบบกลับมาสมบูรณ์ 100% แล้วครับท่านประธาน!")
+            if res and res.status_code == 200: st.success("ส่งเรียบร้อย!"); st.balloons()
+            else: st.error("ส่งไม่สำเร็จ")
 
 except Exception as e:
     st.error(f"ระบบขัดข้อง: {e}")
