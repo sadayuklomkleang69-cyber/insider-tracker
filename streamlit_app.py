@@ -42,7 +42,7 @@ def fetch_all_data():
         except: continue
     return (pd.concat(all_data_list) if all_data_list else pd.DataFrame()), prices
 
-# --- 3. SIDEBAR ---
+# --- 3. SIDEBAR NAVIGATION ---
 with st.sidebar:
     st.title("🎛️ Command Center V6.7")
     menu = st.radio("เลือกโหมด:", ["📊 Whale Sentiment Score", "🐳 Insider Live Feed", "🧮 ตารางคำนวณ Dime", "📝 บันทึกการลงทุน", "📡 ระบบ LINE"])
@@ -89,7 +89,31 @@ try:
         st.title("🧮 Smart Calculator (Sync Dime)")
         selected = st.selectbox("เลือกหุ้น:", watchlist, index=watchlist.index('UPST') if 'UPST' in watchlist else 0)
         live_p = current_prices.get(selected, 1.0)
-        
         c1, c2 = st.columns([1, 1.2])
         with c1:
-            st.markdown(f'<div class="metric-box">ราคาตลาดปัจจุบัน: <b>${
+            st.markdown(f'<div class="metric-box">ราคาปัจจุบัน: <b>${live_p:.2f}</b></div>', unsafe_allow_html=True)
+            d_sh = st.number_input("หุ้นใน Dime", value=0.0)
+            d_avg = st.number_input("ต้นทุนเดิม ($)", value=float(live_p))
+            top_up = st.number_input("เงินช้อนเพิ่ม ($)", value=1000.0)
+            new_sh = top_up / live_p if live_p > 0 else 0
+            total_sh = d_sh + new_sh
+            final_avg = ((d_sh * d_avg) + top_up) / total_sh if total_sh > 0 else 0
+            st.metric("ราคาเฉลี่ยใหม่", f"${final_avg:.2f}", f"{final_avg - d_avg:.2f}")
+        with c2:
+            st.subheader("🎯 จุดเข้า & เป้าหมาย")
+            targets = [live_p * 1.2, live_p * 1.5, live_p * 2.0]
+            supports = [live_p * 0.95, live_p * 0.90, live_p * 0.85]
+            res_data = [{"จุดช้อน ($)": f"{s:.2f}", "เป้า 1 (+20%)": f"${live_p*1.2:.2f}", "เป้า 2 (+50%)": f"${live_p*1.5:.2f}"} for s in supports]
+            st.table(pd.DataFrame(res_data))
+
+    elif menu == "📝 บันทึกการลงทุน":
+        st.title("📝 Investment Journal")
+        st.text_area("บันทึกแผนการเทรด:", placeholder="พิมพ์แผนของท่านประธานที่นี่...")
+        st.button("💾 บันทึก")
+
+    elif menu == "📡 ระบบ LINE":
+        st.header("📡 LINE System")
+        if st.button("🚀 ทดสอบสัญญาณ"): st.balloons()
+
+except Exception as e:
+    st.error(f"ระบบขัดข้อง: {e}")
