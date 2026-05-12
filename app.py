@@ -5,107 +5,102 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V9.8", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V9.9", layout="wide")
 st_autorefresh(interval=60000, key="datarefresh")
 
-# 2. ข้อมูลพอร์ตจริงของประธานนุ (ฝังลงฐานราก)
-PORTFOLIO_DATA = {
-    "TSM": {"Value_THB": 55244.24, "PL_Pct": 10.28, "Note": "🎯 สินทรัพย์สัดส่วนสูงสุด (18.52%)"},
-    "NVDA": {"Value_THB": 46038.54, "PL_Pct": 18.95, "Note": "สัดส่วน 15.44%"},
-    "MU": {"Value_THB": 40188.92, "PL_Pct": 68.75, "Note": "🥇 กำไรสูงสุด"},
-    "MSFT": {"Value_THB": 27148.52, "PL_Pct": 4.69, "Note": ""},
-    "AVGO": {"Value_THB": 25391.97, "PL_Pct": 18.89, "Note": ""},
-    "GOOGL": {"Value_THB": 24350.15, "PL_Pct": 22.86, "Note": ""},
-    "PLTR": {"Value_THB": 16743.23, "PL_Pct": -7.75, "Note": "⚠️ สินทรัพย์เดียวที่ติดลบ"},
-    "ARM": {"Value_THB": 16132.26, "PL_Pct": 29.81, "Note": ""},
-    "AMD": {"Value_THB": 13374.89, "PL_Pct": 61.00, "Note": ""},
-    "AMZN": {"Value_THB": 12972.02, "PL_Pct": 18.21, "Note": ""},
-    "ASML": {"Value_THB": 11166.77, "PL_Pct": 8.95, "Note": ""},
-    "RKLB": {"Value_THB": 6495.83, "PL_Pct": 41.11, "Note": ""},
-    "NBIS": {"Value_THB": 2955.28, "PL_Pct": 16.69, "Note": ""}
+# 2. ข้อมูลพอร์ตคงที่ของประธานนุ (ข้อมูลจริง 13 รายการ)
+PORTFOLIO_BASE = {
+    "TSM": {"Value": 55244.24, "PL": 10.28, "Note": "🎯 สูงสุด (18.52%)"},
+    "NVDA": {"Value": 46038.54, "PL": 18.95, "Note": "สัดส่วน 15.44%"},
+    "MU": {"Value": 40188.92, "PL": 68.75, "Note": "🥇 กำไรสูงสุด"},
+    "MSFT": {"Value": 27148.52, "PL": 4.69, "Note": ""},
+    "AVGO": {"Value": 25391.97, "PL": 18.89, "Note": ""},
+    "GOOGL": {"Value": 24350.15, "PL": 22.86, "Note": ""},
+    "PLTR": {"Value": 16743.23, "PL": -7.75, "Note": "⚠️ ติดลบตัวเดียว"},
+    "ARM": {"Value": 16132.26, "PL": 29.81, "Note": ""},
+    "AMD": {"Value": 13374.89, "PL": 61.00, "Note": ""},
+    "AMZN": {"Value": 12972.02, "PL": 18.21, "Note": ""},
+    "ASML": {"Value": 11166.77, "PL": 8.95, "Note": ""},
+    "RKLB": {"Value": 6495.83, "PL": 41.11, "Note": ""},
+    "NBIS": {"Value": 2955.28, "PL": 16.69, "Note": ""}
 }
 
-# Initializing Session States
 if 'cash_balance' not in st.session_state:
     st.session_state.cash_balance = 2970.05
 if 'battle_log' not in st.session_state:
     st.session_state.battle_log = []
-if 'my_portfolio' not in st.session_state:
-    st.session_state.my_portfolio = PORTFOLIO_DATA
 
 # 3. Market Tickers
-tickers = list(PORTFOLIO_DATA.keys())
+tickers = list(PORTFOLIO_BASE.keys())
 
 # 4. Functions
 @st.cache_data(ttl=60)
-def get_stock_data(ticker_list):
-    stock_data = {}
-    for symbol in ticker_list:
+def get_market_data(ticker_list):
+    results = {}
+    for s in ticker_list:
         try:
-            ticker_obj = yf.Ticker(symbol)
-            df = ticker_obj.history(period="5d", interval="15m")
+            t = yf.Ticker(s)
+            df = t.history(period="5d", interval="15m")
             if df.empty: continue
-            # RSI Calculation
+            # RSI
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
             loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            current_rsi = 100 - (100 / (1 + (gain / loss))).iloc[-1]
-            # Price & Change
-            current_p = float(df['Close'].iloc[-1])
-            prev_close = ticker_obj.fast_info['previousClose']
-            change = ((current_p - prev_close) / prev_close) * 100
-            stock_data[symbol] = {
-                "Price": current_p, "Change %": change, "RSI": current_rsi,
-                "Mood": "🔥 น่าช้อน" if current_rsi < 35 else "📉 เริ่มถูก" if current_rsi < 45 else "⚖️ ปกติ"
-            }
+            rsi = 100 - (100 / (1 + (gain / loss))).iloc[-1]
+            # Price
+            curr = float(df['Close'].iloc[-1])
+            prev = t.fast_info['previousClose']
+            chg = ((curr - prev) / prev) * 100
+            results[s] = {"Price": curr, "Chg": chg, "RSI": rsi}
         except: continue
-    return stock_data
+    return results
 
-# --- TOP HUD ---
-st.title("🎯 Chairman Nu Command Center V9.8")
-total_port_value = sum(item['Value_THB'] for item in st.session_state.my_portfolio.values())
-c1, c2, c3, c4 = st.columns([2, 2, 1, 1])
+# --- HEADER ---
+st.title("🎯 Chairman Nu Command Center V9.9")
+total_val = sum(v['Value'] for v in PORTFOLIO_BASE.values())
+h1, h2, h3, h4 = st.columns([2, 2, 1, 1])
+h1.metric("💰 รวมมูลค่าพอร์ต", f"{total_val:,.2f} THB")
+h2.metric("🔥 กระสุนคงเหลือ", f"{st.session_state.cash_balance:,.2f} THB")
 
-with c1: st.metric("💰 รวมมูลค่าพอร์ต", f"{total_port_value:,.2f} THB")
-with c2: st.metric("🔥 กระสุนคงเหลือ", f"{st.session_state.cash_balance:,.2f} THB")
-with c3:
+with h3:
     with st.popover("📥 เติมเงิน"):
-        amt = st.number_input("จำนวนเงิน", min_value=0.0)
-        if st.button("ยืนยัน"):
-            st.session_state.cash_balance += amt
-            st.rerun()
-with c4:
+        if st.button("เติม 5,000"): st.session_state.cash_balance += 5000; st.rerun()
+with h4:
     with st.popover("🎯 ยิงกระสุน"):
-        sel = st.selectbox("เป้าหมาย", tickers)
-        p = st.number_input("ราคา ($)"); s = st.number_input("เงิน (THB)")
-        if st.button("Execute"):
-            if s <= st.session_state.cash_balance:
-                st.session_state.cash_balance -= s
-                st.session_state.battle_log.append({"Time": time.strftime("%H:%M"), "Ticker": sel, "Spent": s})
-                st.rerun()
+        target = st.selectbox("เป้าหมาย", tickers)
+        if st.button("Execute Fire!"): st.balloons()
 
 st.markdown("---")
 
-# --- Section 1: The Vault (Fixed Display) ---
-st.subheader("📁 My Strategic Assets (เจาะลึกพอร์ตรายตัว)")
+# --- SECTION 1: THE PORTFOLIO (ข้อมูลที่ประธานใส่มา) ---
+st.subheader("📁 My Strategic Assets (สถานะพอร์ตปัจจุบัน)")
+m_data = get_market_data(tickers)
+
 p_list = []
-for t, info in st.session_state.my_portfolio.items():
+for t, info in PORTFOLIO_BASE.items():
+    curr_p = m_data.get(t, {}).get("Price", 0)
     p_list.append({
-        "สินทรัพย์": t, 
-        "มูลค่า (บาท)": f"{info['Value_THB']:,.2f}", 
-        "กำไร/ขาดทุน (%)": f"{info['PL_Pct']:+.2f}%", 
-        "สถานะ": info['Note']
+        "สินทรัพย์": t,
+        "มูลค่าสะสม (บาท)": f"{info['Value']:,.2f}",
+        "กำไร/ขาดทุน (%)": f"{info['PL']:+.2f}%",
+        "ราคาตลาด ($)": f"{curr_p:.2f}",
+        "สถานะ/บันทึก": info['Note']
     })
+
 st.table(pd.DataFrame(p_list))
 
 st.markdown("---")
 
-# --- Section 2: Market Live Pulse ---
-m_data = get_stock_data(tickers)
+# --- SECTION 2: LIVE PULSE (RSI & MOOD) ---
+st.subheader("🚀 Market Live Pulse (จังหวะช้อน)")
 if m_data:
-    st.subheader("🚀 Market Live Pulse")
-    display_df = pd.DataFrame.from_dict(m_data, orient='index').reset_index()
-    display_df.columns = ["Ticker", "Price", "Change %", "RSI", "Market Mood"]
-    st.dataframe(display_df.sort_values("RSI"), use_container_width=True)
+    pulse_data = []
+    for t, d in m_data.items():
+        mood = "🔥 น่าช้อน" if d['RSI'] < 35 else "📉 เริ่มถูก" if d['RSI'] < 45 else "⚖️ ปกติ"
+        pulse_data.append({
+            "Ticker": t, "Price": d['Price'], "Change %": f"{d['Chg']:+.2f}%",
+            "RSI": round(d['RSI'], 2), "Market Mood": mood
+        })
+    st.dataframe(pd.DataFrame(pulse_data).sort_values("RSI"), use_container_width=True)
 
-st.caption("© 2026 Chairman Nu Intelligence System • Eternal Vault Mode Active")
+st.caption("© 2026 Chairman Nu Intelligence System • Battle-Ready Portfolio")
