@@ -5,20 +5,23 @@ from streamlit_autorefresh import st_autorefresh
 import time
 
 # 1. Setup & Configuration
-st.set_page_config(page_title="Chairman Nu Command Center V8.1", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V8.2", layout="wide")
 st_autorefresh(interval=300000, key="datarefresh")
 
-# 2. Initializing Ammo System (ระบบกระสุน)
+# 2. Initializing Ammo System
 if 'cash_balance' not in st.session_state:
-    st.session_state.cash_balance = 4000.0  # กระสุนเริ่มต้น
+    st.session_state.cash_balance = 4000.0
 if 'battle_log' not in st.session_state:
-    st.session_state.battle_log = [] # ประวัติการช้อน
+    st.session_state.battle_log = []
 
-# 3. Target Data
+# 3. Target Data (เพิ่ม NBIS และหุ้นใน Trending ของประธาน)
 target_prices = {
-    "NVDA": 210.0, "TSM": 380.0, "ASML": 1450.0, "PLTR": 130.0, 
-    "GOOGL": 380.0, "AVGO": 400.0, "MSFT": 400.0, "AMZN": 260.0, 
-    "ARM": 200.0, "AMD": 430.0, "MU": 730.0, "RKLB": 110.0
+    "NBIS": 170.0,  # เพิ่มตัวนี้ตามสั่งครับประธาน
+    "MU": 730.0, "NVDA": 210.0, "TSM": 380.0, "ASML": 1450.0, 
+    "PLTR": 130.0, "GOOGL": 380.0, "AVGO": 400.0, "MSFT": 400.0, 
+    "AMZN": 260.0, "ARM": 200.0, "AMD": 430.0, "RKLB": 110.0,
+    "META": 580.0, "AAPL": 220.0, "TSLA": 250.0, "SOFI": 10.0, 
+    "UPST": 30.0, "SPY": 530.0
 }
 tickers = list(target_prices.keys())
 
@@ -30,7 +33,7 @@ def calculate_rsi_manual(series, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-@st.cache_data(ttl=900)
+@st.cache_data(ttl=600)
 def get_data(ticker_list):
     stock_data = []
     for symbol in ticker_list:
@@ -57,11 +60,10 @@ def get_data(ticker_list):
                 "Change %": f"{change:+.2f}%", "RSI": round(current_rsi, 2),
                 "Market Mood": mood, "Gap to Target %": f"{gap:+.2f}%"
             })
-            time.sleep(0.2)
         except: continue
     return pd.DataFrame(stock_data)
 
-# --- SIDEBAR: AMMO MANAGEMENT (โหมดกระสุน) ---
+# --- SIDEBAR (Ammunition Depot) ---
 st.sidebar.title("🧨 Ammunition Depot")
 st.sidebar.metric("กระสุนคงเหลือ (Cash)", f"{st.session_state.cash_balance:,.2f} THB")
 
@@ -69,7 +71,6 @@ with st.sidebar.expander("📥 เติมกระสุน (Top-up)"):
     add_amt = st.number_input("จำนวนเงินที่เติม", min_value=0.0, step=500.0)
     if st.button("ยืนยันการเติมเงิน"):
         st.session_state.cash_balance += add_amt
-        st.success(f"เติมกระสุนเรียบร้อย! +{add_amt}")
         st.rerun()
 
 with st.sidebar.expander("🎯 คำนวณวิถีกระสุน (Buy)"):
@@ -89,38 +90,34 @@ with st.sidebar.expander("🎯 คำนวณวิถีกระสุน (Bu
             st.balloons()
             st.rerun()
         else:
-            st.error("กระสุนไม่พอ! กรุณาเติมเงินก่อน")
+            st.error("กระสุนไม่พอ!")
 
 # --- MAIN CONTENT ---
-st.title("🎯 Chairman Nu Command Center V8.1")
+st.title("🎯 Chairman Nu Command Center V8.2")
+st.write(f"กำลังติดตามหุ้นทั้งหมด {len(tickers)} ตัว (รวม NBIS)")
 
 data = get_data(tickers)
 if not data.empty:
-    st.subheader("🚀 Market Opportunity Scan")
+    st.subheader("🚀 Market Opportunity Scan (Sorted by RSI)")
     st.dataframe(data.sort_values("RSI"), use_container_width=True)
     
     best_deal = data.sort_values("RSI").iloc[0]
     if best_deal['RSI'] < 40:
-        st.success(f"💡 **จาร์วิสวิเคราะห์:** หุ้น **{best_deal['Ticker']}** อยู่ในจุดที่น่าสนใจที่สุด (RSI: {best_deal['RSI']})")
+        st.success(f"💡 **จาร์วิสวิเคราะห์:** หุ้น **{best_deal['Ticker']}** น่าสนใจที่สุด (RSI: {best_deal['RSI']})")
 
 st.markdown("---")
-
 col1, col2 = st.columns([2, 1])
 with col1:
-    st.subheader("📜 Battle Log (ประวัติการช้อน)")
+    st.subheader("📜 Battle Log (ประวัติการรบ)")
     if st.session_state.battle_log:
-        log_df = pd.DataFrame(st.session_state.battle_log)
-        st.table(log_df.iloc[::-1])
+        st.table(pd.DataFrame(st.session_state.battle_log).iloc[::-1])
     else:
-        st.info("ยังไม่มีการบันทึกการรบในรอบนี้")
+        st.info("ยังไม่มีการบันทึกการรบ")
 
 with col2:
     st.subheader("📊 Ammo Allocation")
     if st.session_state.battle_log:
-        log_df = pd.DataFrame(st.session_state.battle_log)
-        summary = log_df.groupby("Ticker")["Spent"].sum()
+        summary = pd.DataFrame(st.session_state.battle_log).groupby("Ticker")["Spent"].sum()
         st.bar_chart(summary)
-    else:
-        st.write("รอข้อมูลการช้อน...")
 
-st.caption("© 2026 Chairman Nu Intelligence System • Ammo System Active")
+st.caption("© 2026 Chairman Nu Intelligence System • NBIS Synced")
