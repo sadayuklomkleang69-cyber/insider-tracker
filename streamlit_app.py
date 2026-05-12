@@ -5,7 +5,7 @@ import requests
 from datetime import datetime
 
 # --- 1. CONFIGURATION & STYLE ---
-st.set_page_config(page_title="Chairman Nu Command Center V6.7", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V6.8", layout="wide")
 
 st.markdown("""
     <style>
@@ -18,6 +18,9 @@ st.markdown("""
     }
     .sell-card { border-left: 8px solid #FF4444; }
     .metric-box { background-color: #1E1E1E; padding: 15px; border-radius: 10px; border: 1px solid #00AAFF; }
+    /* สไตล์สำหรับไฟกระพริบ */
+    .status-live { color: #00FF88; font-weight: bold; animation: blinker 1.5s linear infinite; }
+    @keyframes blinker { 50% { opacity: 0; } }
     </style>
     """, unsafe_allow_html=True)
 
@@ -44,9 +47,11 @@ def fetch_all_data():
 
 # --- 3. SIDEBAR NAVIGATION ---
 with st.sidebar:
-    st.title("🎛️ Command Center V6.7")
+    st.title("🎛️ Command Center V6.8")
     menu = st.radio("เลือกโหมด:", ["📊 Whale Sentiment Score", "🐳 Insider Live Feed", "🧮 ตารางคำนวณ Dime", "📝 บันทึกการลงทุน", "📡 ระบบ LINE"])
     st.markdown("---")
+    # ไฟกระพริบกลับมาแล้วครับ
+    st.markdown(f"สถานะระบบ: <span class='status-live'>● LIVE</span>", unsafe_allow_html=True)
     st.info(f"อัปเดตล่าสุด: {datetime.now().strftime('%H:%M:%S')}")
 
 try:
