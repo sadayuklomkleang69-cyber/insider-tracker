@@ -47,19 +47,4 @@ with st.sidebar:
 try:
     full_df, current_prices = fetch_all_data()
 
-    if menu == "🐳 จับตาปลาวาฬ (ทุกรายการ)":
-        st.header("🐳 รายงานความเคลื่อนไหวคนใน (Real-time)")
-        if not full_df.empty:
-            buys = full_df[~full_df['Text'].str.contains('Sale', case=False, na=False)]
-            sells = full_df[full_df['Text'].str.contains('Sale', case=False, na=False)]
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("🟢 รายการรับหุ้น/ซื้อเพิ่ม")
-                for _, row in buys.sort_values('Date', ascending=False).head(15).iterrows():
-                    st.success(f"**{row['Symbol']}** | {row['Date'].strftime('%d/%m/%y')}\n\n**{row['Insider']}** ({row['Position']})\n\n{int(row['Shares']):,} หุ้น | ประเภท: {row['Text']}")
-            
-            with col2:
-                st.subheader("🔴 รายการขาย/โอนออก")
-                for _, row in sells.sort_values('Date', ascending=False).head(15).iterrows():
-                    st.error
+    if menu == "🐳 จับตาป
