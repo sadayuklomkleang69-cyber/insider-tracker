@@ -33,7 +33,7 @@ st.subheader("Insiders วงใน")
 st.write(f"อัปเดตล่าสุด: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
 # --- DATA SOURCE ---
-API_KEY = "OIrEUM6wlgFPzMjSC3aWXFkwGkVin2d2"
+API_KEY = "77f3e82845c843c98369269418e2444c"
 
 @st.cache_data(ttl=300)
 def fetch_insider_data():
