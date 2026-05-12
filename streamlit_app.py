@@ -5,7 +5,7 @@ import requests
 from datetime import datetime
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Chairman Nu Command Center V4.3", layout="wide")
+st.set_page_config(page_title="Chairman Nu Command Center V4.4", layout="wide")
 
 LINE_ACCESS_TOKEN = "Tt4FXXuT6v9qP2m9p9p9p9p9p9p9p9p9" 
 USER_ID = "U60411800f135b37699709f1938507c31"
@@ -50,7 +50,6 @@ try:
     if menu == "🐳 จับตาปลาวาฬ (ทุกรายการ)":
         st.header("🐳 รายงานความเคลื่อนไหวคนใน (Real-time)")
         if not full_df.empty:
-            # แยกฝั่งซื้อ/รับหุ้น กับ ฝั่งขาย
             buys = full_df[~full_df['Text'].str.contains('Sale', case=False, na=False)]
             sells = full_df[full_df['Text'].str.contains('Sale', case=False, na=False)]
             
@@ -63,23 +62,4 @@ try:
             with col2:
                 st.subheader("🔴 รายการขาย/โอนออก")
                 for _, row in sells.sort_values('Date', ascending=False).head(15).iterrows():
-                    st.error(f"**{row['Symbol']}** | {row['Date'].strftime('%d/%m/%y')}\n\n**{row['Insider']}** ({row['Position']})\n\n{int(row['Shares']):,} หุ้น | ประเภท: {row['Text']}")
-        else:
-            st.warning("กำลังดึงข้อมูล... หากยังไม่ขึ้นกรุณารอสักครู่ครับ")
-
-    elif menu == "🧮 ตารางคำนวณ":
-        # ... (โค้ดส่วนคำนวณเหมือนเดิม)
-        st.header("🧮 ตารางคำนวณอัจฉริยะ")
-        selected = st.selectbox("เลือกหุ้น:", watchlist, index=watchlist.index('UPST'))
-        live_p = current_prices.get(selected, 0)
-        st.write(f"ราคาตลาดปัจจุบัน: **${live_p:.2f}**")
-        # (ส่วนกรอกตัวเลข Dime...)
-
-    elif menu == "📡 ระบบ LINE":
-        st.header("📡 ศูนย์ควบคุม LINE")
-        if st.button("🚀 ส่งข้อความทดสอบ"):
-            send_line_message("จาร์วิส V4.3 รายงานตัวครับ!")
-            st.balloons()
-
-except Exception as e:
-    st.error(f"ระบบขัดข้อง: {e}")
+                    st.error
