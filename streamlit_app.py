@@ -21,14 +21,12 @@ st.markdown("""
     }
     .ticker-name { color: #F1C40F; font-size: 22px; font-weight: bold; }
     .price-text { color: #4FA3FF; font-size: 18px; }
-    .sell-text { color: #E74C3C; font-weight: bold; }
-    .buy-text { color: #2ECC71; font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. HEADER ---
 st.title('🎯 ระบบจับตาปลาวาฬ: ซื้อ & ขาย')
-st.write(f"ข้อมูลสดจาก Yahoo Finance | อัปเดต: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+st.write(f"อัปเดตล่าสุด: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
 
 # --- 3. WATCHLIST ---
 watchlist = ['NVDA', 'TSM', 'MSFT', 'PLTR', 'UPST', 'SOFI', 'GOOGL', 'AMD', 'TSLA', 'ARM', 'MU']
@@ -40,13 +38,15 @@ def get_insider_combined():
     for ticker in watchlist:
         try:
             t = yf.Ticker(ticker)
+            # ดึงราคาตลาดปัจจุบันมาสำรองไว้
+            current_price = t.fast_info.get('last_price', 0)
+            
             df = t.insider_transactions
             if df is not None and not df.empty:
                 df['Symbol'] = ticker
-                # ปรับชื่อคอลัมน์ให้เป็นตัวใหญ่ตัวแรกทั้งหมดเพื่อป้องกัน Error
+                df['Current_Price'] = current_price
                 df.columns = [str(c).capitalize() for c in df.columns]
                 
-                # แยกรายการซื้อและขาย
                 buys = df[df['Text'].str.contains('Purchase', case=False, na=False)].copy()
                 sells = df[df['Text'].str.contains('Sale', case=False, na=False)].copy()
                 
@@ -58,42 +58,45 @@ def get_insider_combined():
 
 # --- 4. EXECUTION ---
 try:
-    with st.spinner('จาร์วิสกำลังสแกนหาการเคลื่อนไหว...'):
+    with st.spinner('จาร์วิสกำลังเช็คราคาตลาดให้ท่านประธาน...'):
         buys_df, sells_df = get_insider_combined()
 
-    col_left, col_right = st.columns(2)
+    col1, col2 = st.columns(2)
 
-    with col_left:
+    with col1:
         st.subheader("🟢 รายการซื้อ (สะสมของ)")
         if not buys_df.empty:
             buys_df = buys_df.sort_index(ascending=False).head(15)
             for _, row in buys_df.iterrows():
-                price = row.get('Price', 0)
+                # ถ้าราคาเป็น 0 ให้ใช้ราคาตลาดปัจจุบันแทน
+                display_price = row.get('Price', 0)
+                if display_price == 0 or pd.isna(display_price):
+                    display_price = row.get('Current_price', 0)
+                
                 st.markdown(f"""
                 <div class="buy-card">
-                    <span class="ticker-name">{row['Symbol']}</span> | <span class="buy-text">BUY</span><br>
-                    {int(row['Shares']):,} หุ้น @ ${price:.2f}<br>
-                    <b>{row['Insider']}</b> ({row['Position']})
+                    <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#2ECC71">BUY</span><br>
+                    {int(row['Shares']):,} หุ้น @ <b>${display_price:.2f}</b><br>
+                    <small>{row['Insider']} ({row['Position']})</small>
                 </div>
                 """, unsafe_allow_html=True)
-        else:
-            st.info("ยังไม่มีรายการซื้อใหม่")
 
-    with col_right:
+    with col2:
         st.subheader("🔴 รายการขาย (ระวังตัว)")
         if not sells_df.empty:
             sells_df = sells_df.sort_index(ascending=False).head(15)
             for _, row in sells_df.iterrows():
-                price = row.get('Price', 0)
+                display_price = row.get('Price', 0)
+                if display_price == 0 or pd.isna(display_price):
+                    display_price = row.get('Current_price', 0)
+
                 st.markdown(f"""
                 <div class="sell-card">
-                    <span class="ticker-name">{row['Symbol']}</span> | <span class="sell-text">SELL</span><br>
-                    {int(row['Shares']):,} หุ้น @ ${price:.2f}<br>
-                    <b>{row['Insider']}</b> ({row['Position']})
+                    <span class="ticker-name">{row['Symbol']}</span> | <span style="color:#E74C3C">SELL</span><br>
+                    {int(row['Shares']):,} หุ้น @ <b>${display_price:.2f}</b><br>
+                    <small>{row['Insider']} ({row['Position']})</small>
                 </div>
                 """, unsafe_allow_html=True)
-        else:
-            st.success("ปลอดภัย! ยังไม่มีปลาวาฬเทขายในกลุ่มนี้ครับ")
 
 except Exception as e:
     st.error(f"ระบบกำลังปรับปรุง: {e}")
