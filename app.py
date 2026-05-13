@@ -31,14 +31,18 @@ df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
 st.table(df[['Val', 'PL']])
 st.metric("💰 AMMO REMAINING (THB)", f"{st.session_state.cash_balance:,.2f}")
 
-# --- 3. RSI STRATEGIC ANALYSIS (ส่วนที่ประธานถามหา) ---
+# --- 3. RSI STRATEGIC ANALYSIS (แก้ไข Bug KeyError) ---
 st.subheader("📉 RSI TACTICAL ANALYSIS")
 def get_strategy(rsi):
-    if rsi >= 70: return "⚠️ OVERBOUGHT (เตรียมเก็บเกี่ยว)"
-    elif rsi <= 30: return "🚀 OVERSOLD (จังหวะสั่งยิง)"
+    if rsi >= 70: return "⚠️ OVERBOUGHT (เก็บเกี่ยว)"
+    elif rsi <= 30: return "🚀 OVERSOLD (สั่งยิง)"
     else: return "Hold (เฝ้าระวัง)"
 
 rsi_df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
+# ตรวจสอบว่ามีคอลัมน์ RSI หรือไม่ ถ้าไม่มีให้ใส่ 50 เป็นค่ากลาง
+if 'RSI' not in rsi_df.columns:
+    rsi_df['RSI'] = 50
+
 rsi_df['Strategy'] = rsi_df['RSI'].apply(get_strategy)
 st.dataframe(rsi_df[['RSI', 'Strategy']], use_container_width=True)
 
@@ -48,15 +52,15 @@ with st.expander("⚙️ จัดการรบ (เติมกระสุ�
     
     with col1:
         st.markdown("### 📥 เติมเสบียง")
-        topup = st.number_input("เติมกระสุน (THB)", min_value=0.0, key="t1")
+        topup = st.number_input("เติมกระสุน (THB)", min_value=0.0, key="t_in")
         if st.button("ยืนยันการเติมเงิน"):
             st.session_state.cash_balance += topup
             st.rerun()
 
     with col2:
         st.markdown("### 🚀 สั่งยิง (BUY)")
-        target_buy = st.selectbox("เป้าหมายการยิง", list(st.session_state.my_assets.keys()), key="b1")
-        spent = st.number_input("จำนวนเงินที่ยิง", min_value=0.0, key="b2")
+        target_buy = st.selectbox("เป้าหมายการยิง", list(st.session_state.my_assets.keys()), key="b_tg")
+        spent = st.number_input("เงินที่ยิง", min_value=0.0, key="b_am")
         if st.button("FIRE!"):
             if spent <= st.session_state.cash_balance:
                 st.session_state.cash_balance -= spent
@@ -66,12 +70,8 @@ with st.expander("⚙️ จัดการรบ (เติมกระสุ�
 
     with col3:
         st.markdown("### 💰 เก็บเกี่ยว (SELL)")
-        target_sell = st.selectbox("เป้าหมายการขาย", list(st.session_state.my_assets.keys()), key="s1")
+        target_sell = st.selectbox("เป้าหมายการขาย", list(st.session_state.my_assets.keys()), key="s_tg")
         curr_val = st.session_state.my_assets[target_sell]["Val"]
-        sell_val = st.number_input("จำนวนเงินที่ขาย", min_value=0.0, max_value=float(curr_val), key="s2")
+        sell_val = st.number_input("เงินที่ขาย", min_value=0.0, max_value=float(curr_val), key="s_am")
         if st.button("CONFIRM SELL"):
-            st.session_state.my_assets[target_sell]["Val"] -= sell_val
-            st.session_state.cash_balance += sell_val
-            st.rerun()
-
-st.info("ระบบยุทธวิธี RSI ทำงานปกติแล้วครับประธาน")
+            st.session_state.my_assets[target_sell]["Val"] -=
