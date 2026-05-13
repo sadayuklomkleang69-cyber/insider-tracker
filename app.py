@@ -24,16 +24,12 @@ if 'my_assets' not in st.session_state:
         "NBIS": {"Val": 2955.28, "PL": 16.69, "RSI": 30}
     }
 
-# --- 2. RSI LIVE UPDATE ENGINE (ซ่อม Bug KeyError) ---
+# --- 2. RSI LIVE ENGINE (Simulation) ---
 for stock in st.session_state.my_assets:
-    # ถ้าหุ้นตัวไหนไม่มีค่า RSI ให้แอบใส่ค่าเริ่มต้นไว้ก่อน
     if "RSI" not in st.session_state.my_assets[stock]:
         st.session_state.my_assets[stock]["RSI"] = 50
-    
-    # สุ่มการขยับของ RSI เพื่อความสมจริง
-    change = random.randint(-3, 3)
-    new_rsi = st.session_state.my_assets[stock]["RSI"] + change
-    st.session_state.my_assets[stock]["RSI"] = max(10, min(90, new_rsi))
+    # สุ่มการขยับ RSI เล็กน้อยเพื่อให้รู้ว่าระบบทำงาน
+    st.session_state.my_assets[stock]["RSI"] = max(10, min(90, st.session_state.my_assets[stock]["RSI"] + random.randint(-2, 2)))
 
 st.set_page_config(layout="wide")
 st.title("🚀 Chairman Nu Command Center")
@@ -52,14 +48,14 @@ m4.metric("🔫 AMMO REMAINING", f"{st.session_state.cash_balance:,.2f}")
 
 st.markdown("---")
 
-# --- 4. STRATEGIC MONITORING (ยุบรวมช่องเดียวกัน) ---
-view_col1, view_col2 = st.columns([1.2, 1])
+# --- 4. MONITORING (PORTFOLIO & RSI คู่กัน) ---
+col_left, col_right = st.columns([1.2, 1])
 
-with view_col1:
+with col_left:
     st.subheader("📊 STRATEGIC PORTFOLIO")
     st.table(df[['Val', 'PL']])
 
-with view_col2:
+with col_right:
     st.subheader("📉 RSI TACTICAL ANALYSIS")
     def get_strategy(rsi):
         if rsi >= 70: return "⚠️ OVERBOUGHT (เก็บเกี่ยว)"
@@ -68,39 +64,33 @@ with view_col2:
     
     rsi_df = df.copy()
     rsi_df['Strategy'] = rsi_df['RSI'].apply(get_strategy)
-    st.dataframe(rsi_df[['RSI', 'Strategy']].style.background_gradient(cmap='RdYlGn_r', subset=['RSI']), 
-                 use_container_width=True, height=520)
+    # ใช้ dataframe ปกติเพื่อเลี่ยง Error ของ matplotlib
+    st.dataframe(rsi_df[['RSI', 'Strategy']], use_container_width=True, height=520)
 
 # --- 5. ACTIONS ---
 with st.expander("⚙️ จัดการรบ (เติมกระสุน / สั่งยิง / ขาย)"):
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("### 📥 เติมเสบียง")
-        topup = st.number_input("เติมกระสุน (THB)", min_value=0.0, key="t_in")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        topup = st.number_input("เติมกระสุน (THB)", min_value=0.0, key="topup")
         if st.button("ยืนยันการเติม"):
             st.session_state.cash_balance += topup
             st.rerun()
-
-    with col2:
-        st.markdown("### 🚀 สั่งยิง (BUY)")
-        target_buy = st.selectbox("เป้าหมายการยิง", list(st.session_state.my_assets.keys()), key="b_tg")
-        spent = st.number_input("เงินที่ยิง", min_value=0.0, key="b_am")
+    with c2:
+        target_buy = st.selectbox("เป้าหมายการยิง", list(st.session_state.my_assets.keys()), key="buy_target")
+        spent = st.number_input("เงินที่ยิง", min_value=0.0, key="buy_amt")
         if st.button("FIRE!"):
             if spent <= st.session_state.cash_balance:
                 st.session_state.cash_balance -= spent
                 st.session_state.my_assets[target_buy]["Val"] += spent
                 st.balloons()
                 st.rerun()
-
-    with col3:
-        st.markdown("### 💰 เก็บเกี่ยว (SELL)")
-        target_sell = st.selectbox("เป้าหมายการขาย", list(st.session_state.my_assets.keys()), key="s_tg")
-        curr_val = st.session_state.my_assets[target_sell]["Val"]
-        sell_val = st.number_input("เงินที่ขาย", min_value=0.0, max_value=float(curr_val), key="s_am")
+    with c3:
+        target_sell = st.selectbox("เป้าหมายการขาย", list(st.session_state.my_assets.keys()), key="sell_target")
+        curr_v = st.session_state.my_assets[target_sell]["Val"]
+        sell_v = st.number_input("เงินที่ขาย", min_value=0.0, max_value=float(curr_v), key="sell_amt")
         if st.button("CONFIRM SELL"):
-            if sell_val > 0:
-                st.session_state.my_assets[target_sell]["Val"] -= sell_val
-                st.session_state.cash_balance += sell_val
-                st.success("ขายเรียบร้อย!")
-                time.sleep(1)
-                st.rerun()
+            st.session_state.my_assets[target_sell]["Val"] -= sell_v
+            st.session_state.cash_balance += sell_v
+            st.success("ขายเรียบร้อย!")
+            time.sleep(1)
+            st.rerun()
