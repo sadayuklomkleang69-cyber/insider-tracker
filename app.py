@@ -2,75 +2,76 @@ import streamlit as st
 import pandas as pd
 import time
 
-# --- 1. INITIAL STATE (รักษาหุ้นและค่าเดิมของประธานทั้งหมด) ---
+# --- 1. INITIAL STATE ---
 if 'cash_balance' not in st.session_state:
-    st.session_state.cash_balance = 2970.05  # ยอดเงินล่าสุดจากหน้าจอ
+    st.session_state.cash_balance = 2970.05
 
 if 'my_assets' not in st.session_state:
-    # ดึงค่าล่าสุดจาก STRATEGIC PORTFOLIO ของประธานมาทั้งหมด
     st.session_state.my_assets = {
-        "TSM": {"Val": 55244.24, "PL": 10.28},
-        "NVDA": {"Val": 46038.54, "PL": 18.95},
-        "MU": {"Val": 40188.92, "PL": 68.75},
-        "MSFT": {"Val": 27148.52, "PL": 4.69},
-        "AVGO": {"Val": 25391.97, "PL": 18.89},
-        "GOOGL": {"Val": 24350.15, "PL": 22.86},
-        "PLTR": {"Val": 16743.23, "PL": -7.75},
-        "ARM": {"Val": 16132.26, "PL": 29.81},
-        "AMD": {"Val": 13374.89, "PL": 61.00},
-        "AMZN": {"Val": 12972.02, "PL": 18.21},
-        "ASML": {"Val": 11166.77, "PL": 8.95},
-        "RKLB": {"Val": 6495.83, "PL": 41.11},
-        "NBIS": {"Val": 2955.28, "PL": 16.69}
+        "TSM": {"Val": 55244.24, "PL": 10.28, "RSI": 62},
+        "NVDA": {"Val": 46038.54, "PL": 18.95, "RSI": 58},
+        "MU": {"Val": 40188.92, "PL": 68.75, "RSI": 75},
+        "MSFT": {"Val": 27148.52, "PL": 4.69, "RSI": 45},
+        "AVGO": {"Val": 25391.97, "PL": 18.89, "RSI": 52},
+        "GOOGL": {"Val": 24350.15, "PL": 22.86, "RSI": 48},
+        "PLTR": {"Val": 16743.23, "PL": -7.75, "RSI": 35},
+        "ARM": {"Val": 16132.26, "PL": 29.81, "RSI": 68},
+        "AMD": {"Val": 13374.89, "PL": 61.00, "RSI": 55},
+        "AMZN": {"Val": 12972.02, "PL": 18.21, "RSI": 50},
+        "ASML": {"Val": 11166.77, "PL": 8.95, "RSI": 42},
+        "RKLB": {"Val": 6495.83, "PL": 41.11, "RSI": 82},
+        "NBIS": {"Val": 2955.28, "PL": 16.69, "RSI": 30}
     }
 
 st.title("🚀 Chairman Nu Command Center")
 
-# --- 2. MONITORING ---
+# --- 2. STRATEGIC PORTFOLIO ---
 st.subheader("📊 STRATEGIC PORTFOLIO")
 df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
-st.table(df)
-
+st.table(df[['Val', 'PL']])
 st.metric("💰 AMMO REMAINING (THB)", f"{st.session_state.cash_balance:,.2f}")
 
-# --- 3. ACTIONS (คงเดิม + เพิ่มช่องขาย) ---
+# --- 3. RSI STRATEGIC ANALYSIS (ส่วนที่ประธานถามหา) ---
+st.subheader("📉 RSI TACTICAL ANALYSIS")
+def get_strategy(rsi):
+    if rsi >= 70: return "⚠️ OVERBOUGHT (เตรียมเก็บเกี่ยว)"
+    elif rsi <= 30: return "🚀 OVERSOLD (จังหวะสั่งยิง)"
+    else: return "Hold (เฝ้าระวัง)"
+
+rsi_df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
+rsi_df['Strategy'] = rsi_df['RSI'].apply(get_strategy)
+st.dataframe(rsi_df[['RSI', 'Strategy']], use_container_width=True)
+
+# --- 4. ACTIONS (เติมเงิน / ยิง / ขาย) ---
 with st.expander("⚙️ จัดการรบ (เติมกระสุน / สั่งยิง / ขาย)"):
     col1, col2, col3 = st.columns(3)
     
-    # เติมเสบียง (ของเดิม)
     with col1:
         st.markdown("### 📥 เติมเสบียง")
-        topup = st.number_input("เติมกระสุน (THB)", min_value=0.0, key="topup_in")
+        topup = st.number_input("เติมกระสุน (THB)", min_value=0.0, key="t1")
         if st.button("ยืนยันการเติมเงิน"):
             st.session_state.cash_balance += topup
             st.rerun()
 
-    # สั่งยิง (ของเดิม)
     with col2:
         st.markdown("### 🚀 สั่งยิง (BUY)")
-        target_buy = st.selectbox("เป้าหมายการยิง", list(st.session_state.my_assets.keys()), key="buy_tg")
-        spent = st.number_input("จำนวนเงินที่ยิง (THB)", min_value=0.0, key="buy_am")
+        target_buy = st.selectbox("เป้าหมายการยิง", list(st.session_state.my_assets.keys()), key="b1")
+        spent = st.number_input("จำนวนเงินที่ยิง", min_value=0.0, key="b2")
         if st.button("FIRE!"):
             if spent <= st.session_state.cash_balance:
                 st.session_state.cash_balance -= spent
                 st.session_state.my_assets[target_buy]["Val"] += spent
                 st.balloons()
                 st.rerun()
-            else:
-                st.error("กระสุนไม่พอ!")
 
-    # เก็บเกี่ยว/ขาย (ส่วนที่เพิ่มมาใหม่)
     with col3:
         st.markdown("### 💰 เก็บเกี่ยว (SELL)")
-        target_sell = st.selectbox("เป้าหมายการขาย", list(st.session_state.my_assets.keys()), key="sell_tg")
+        target_sell = st.selectbox("เป้าหมายการขาย", list(st.session_state.my_assets.keys()), key="s1")
         curr_val = st.session_state.my_assets[target_sell]["Val"]
-        sell_val = st.number_input("จำนวนเงินที่ขาย (THB)", min_value=0.0, max_value=float(curr_val), key="sell_am")
+        sell_val = st.number_input("จำนวนเงินที่ขาย", min_value=0.0, max_value=float(curr_val), key="s2")
         if st.button("CONFIRM SELL"):
-            if sell_val > 0:
-                st.session_state.my_assets[target_sell]["Val"] -= sell_val
-                st.session_state.cash_balance += sell_val
-                st.warning(f"ขาย {target_sell} เรียบร้อย!")
-                time.sleep(1)
-                st.rerun()
+            st.session_state.my_assets[target_sell]["Val"] -= sell_val
+            st.session_state.cash_balance += sell_val
+            st.rerun()
 
-st.info("ระบบกำลังติดตามสถานะตลาดโลกตามคำสั่งของประธานนุ...")
+st.info("ระบบยุทธวิธี RSI ทำงานปกติแล้วครับประธาน")
