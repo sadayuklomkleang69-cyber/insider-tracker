@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import time
 
-# --- 1. INITIAL STATE (รักษาค่าเดิมของประธาน) ---
+# --- 1. INITIAL STATE ---
 if 'cash_balance' not in st.session_state:
     st.session_state.cash_balance = 2970.05
 
@@ -23,18 +23,29 @@ if 'my_assets' not in st.session_state:
         "NBIS": {"Val": 2955.28, "PL": 16.69, "RSI": 30}
     }
 
-st.set_page_config(layout="wide") # ปรับหน้าจอให้กว้างเพื่อรองรับ 2 คอลัมน์
+st.set_page_config(layout="wide")
 st.title("🚀 Chairman Nu Command Center")
 
-# --- 2. COMBINED MONITORING SECTION (ยุบรวมไว้ที่เดียวกัน) ---
+# --- 2. PORTFOLIO PERFORMANCE (ส่วนที่ประธานสั่งให้เอาคืนมา) ---
+df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
+total_val = df['Val'].sum()
+avg_pl = df['PL'].mean()
+total_profit = (total_val * avg_pl) / 100 # คำนวณกำไรโดยประมาณ
+
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("📦 Total Portfolio Value", f"{total_val:,.2f} THB")
+m2.metric("📈 Overall Profit (%)", f"{avg_pl:.2f}%", delta=f"{avg_pl:.2f}%")
+m3.metric("💰 Net Profit (THB)", f"{total_profit:,.2f}", delta="Real-time")
+m4.metric("🔫 AMMO REMAINING", f"{st.session_state.cash_balance:,.2f}", delta_color="normal")
+
 st.markdown("---")
-view_col1, view_col2 = st.columns([1.2, 1]) # แบ่งสัดส่วนคอลัมน์
+
+# --- 3. COMBINED MONITORING SECTION ---
+view_col1, view_col2 = st.columns([1.2, 1])
 
 with view_col1:
     st.subheader("📊 STRATEGIC PORTFOLIO")
-    df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
     st.table(df[['Val', 'PL']])
-    st.metric("💰 AMMO REMAINING (THB)", f"{st.session_state.cash_balance:,.2f}")
 
 with view_col2:
     st.subheader("📉 RSI TACTICAL ANALYSIS")
@@ -43,17 +54,14 @@ with view_col2:
         elif rsi <= 30: return "🚀 OVERSOLD (สั่งยิง)"
         else: return "Hold (เฝ้าระวัง)"
     
-    rsi_df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
+    rsi_df = df.copy()
     if 'RSI' not in rsi_df.columns: rsi_df['RSI'] = 50
     rsi_df['Strategy'] = rsi_df['RSI'].apply(get_strategy)
     st.dataframe(rsi_df[['RSI', 'Strategy']], use_container_width=True, height=520)
 
-st.markdown("---")
-
-# --- 3. ACTIONS ---
+# --- 4. ACTIONS ---
 with st.expander("⚙️ จัดการรบ (เติมกระสุน / สั่งยิง / ขาย)"):
     col1, col2, col3 = st.columns(3)
-    
     with col1:
         st.markdown("### 📥 เติมเสบียง")
         topup = st.number_input("เติมกระสุน (THB)", min_value=0.0, key="t_in")
@@ -71,8 +79,7 @@ with st.expander("⚙️ จัดการรบ (เติมกระสุ�
                 st.session_state.my_assets[target_buy]["Val"] += spent
                 st.balloons()
                 st.rerun()
-            else:
-                st.error("กระสุนไม่พอ!")
+            else: st.error("กระสุนไม่พอ!")
 
     with col3:
         st.markdown("### 💰 เก็บเกี่ยว (SELL)")
@@ -87,4 +94,4 @@ with st.expander("⚙️ จัดการรบ (เติมกระสุ�
                 time.sleep(1)
                 st.rerun()
 
-st.info("จัดระเบียบหน้าจอให้ประธานเรียบร้อยครับ ยุทธวิธีและพอร์ตอยู่ระดับสายตาเดียวกันแล้ว")
+st.info("ดึงค่ากำไร % และ Performance กลับมาแสดงผลแบบ Real-time ให้แล้วครับประธาน")
