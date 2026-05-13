@@ -31,7 +31,7 @@ df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
 st.table(df[['Val', 'PL']])
 st.metric("💰 AMMO REMAINING (THB)", f"{st.session_state.cash_balance:,.2f}")
 
-# --- 3. RSI STRATEGIC ANALYSIS (แก้ไข Bug KeyError) ---
+# --- 3. RSI STRATEGIC ANALYSIS ---
 st.subheader("📉 RSI TACTICAL ANALYSIS")
 def get_strategy(rsi):
     if rsi >= 70: return "⚠️ OVERBOUGHT (เก็บเกี่ยว)"
@@ -39,14 +39,12 @@ def get_strategy(rsi):
     else: return "Hold (เฝ้าระวัง)"
 
 rsi_df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
-# ตรวจสอบว่ามีคอลัมน์ RSI หรือไม่ ถ้าไม่มีให้ใส่ 50 เป็นค่ากลาง
 if 'RSI' not in rsi_df.columns:
     rsi_df['RSI'] = 50
-
 rsi_df['Strategy'] = rsi_df['RSI'].apply(get_strategy)
 st.dataframe(rsi_df[['RSI', 'Strategy']], use_container_width=True)
 
-# --- 4. ACTIONS (เติมเงิน / ยิง / ขาย) ---
+# --- 4. ACTIONS ---
 with st.expander("⚙️ จัดการรบ (เติมกระสุน / สั่งยิง / ขาย)"):
     col1, col2, col3 = st.columns(3)
     
@@ -67,6 +65,8 @@ with st.expander("⚙️ จัดการรบ (เติมกระสุ�
                 st.session_state.my_assets[target_buy]["Val"] += spent
                 st.balloons()
                 st.rerun()
+            else:
+                st.error("กระสุนไม่พอ!")
 
     with col3:
         st.markdown("### 💰 เก็บเกี่ยว (SELL)")
@@ -74,4 +74,11 @@ with st.expander("⚙️ จัดการรบ (เติมกระสุ�
         curr_val = st.session_state.my_assets[target_sell]["Val"]
         sell_val = st.number_input("เงินที่ขาย", min_value=0.0, max_value=float(curr_val), key="s_am")
         if st.button("CONFIRM SELL"):
-            st.session_state.my_assets[target_sell]["Val"] -=
+            if sell_val > 0:
+                st.session_state.my_assets[target_sell]["Val"] -= sell_val
+                st.session_state.cash_balance += sell_val
+                st.success(f"ขาย {target_sell} เรียบร้อย!")
+                time.sleep(1)
+                st.rerun()
+
+st.info("ระบบยุทธวิธี RSI และปุ่มขาย พร้อมประจำการแล้วครับประธาน!")
