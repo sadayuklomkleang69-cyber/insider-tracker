@@ -1,12 +1,14 @@
 import streamlit as st
 import pandas as pd
 import time
+import random
 
 # --- 1. INITIAL STATE ---
 if 'cash_balance' not in st.session_state:
     st.session_state.cash_balance = 2970.05
 
 if 'my_assets' not in st.session_state:
+    # เพิ่มค่า RSI เริ่มต้นให้หุ้นทุกตัว
     st.session_state.my_assets = {
         "TSM": {"Val": 55244.24, "PL": 10.28, "RSI": 62},
         "NVDA": {"Val": 46038.54, "PL": 18.95, "RSI": 58},
@@ -23,24 +25,30 @@ if 'my_assets' not in st.session_state:
         "NBIS": {"Val": 2955.28, "PL": 16.69, "RSI": 30}
     }
 
+# ฟังก์ชันจำลองการขยับของ RSI (เพื่อให้ระบบดู Real-time)
+for stock in st.session_state.my_assets:
+    change = random.randint(-2, 2)
+    new_rsi = st.session_state.my_assets[stock]["RSI"] + change
+    st.session_state.my_assets[stock]["RSI"] = max(10, min(90, new_rsi))
+
 st.set_page_config(layout="wide")
 st.title("🚀 Chairman Nu Command Center")
 
-# --- 2. PORTFOLIO PERFORMANCE (ส่วนที่ประธานสั่งให้เอาคืนมา) ---
+# --- 2. PORTFOLIO PERFORMANCE ---
 df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
 total_val = df['Val'].sum()
 avg_pl = df['PL'].mean()
-total_profit = (total_val * avg_pl) / 100 # คำนวณกำไรโดยประมาณ
+total_profit = (total_val * avg_pl) / 100
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("📦 Total Portfolio Value", f"{total_val:,.2f} THB")
 m2.metric("📈 Overall Profit (%)", f"{avg_pl:.2f}%", delta=f"{avg_pl:.2f}%")
-m3.metric("💰 Net Profit (THB)", f"{total_profit:,.2f}", delta="Real-time")
-m4.metric("🔫 AMMO REMAINING", f"{st.session_state.cash_balance:,.2f}", delta_color="normal")
+m3.metric("💰 Net Profit (THB)", f"{total_profit:,.2f}", delta="Updated")
+m4.metric("🔫 AMMO REMAINING", f"{st.session_state.cash_balance:,.2f}")
 
 st.markdown("---")
 
-# --- 3. COMBINED MONITORING SECTION ---
+# --- 3. COMBINED MONITORING (PORTFOLIO + RSI) ---
 view_col1, view_col2 = st.columns([1.2, 1])
 
 with view_col1:
@@ -50,14 +58,14 @@ with view_col1:
 with view_col2:
     st.subheader("📉 RSI TACTICAL ANALYSIS")
     def get_strategy(rsi):
-        if rsi >= 70: return "⚠️ OVERBOUGHT (เก็บเกี่ยว)"
+        if rsi >= 70: return "⚠️ OVERBOUGHT (ควรขาย)"
         elif rsi <= 30: return "🚀 OVERSOLD (สั่งยิง)"
         else: return "Hold (เฝ้าระวัง)"
     
     rsi_df = df.copy()
-    if 'RSI' not in rsi_df.columns: rsi_df['RSI'] = 50
     rsi_df['Strategy'] = rsi_df['RSI'].apply(get_strategy)
-    st.dataframe(rsi_df[['RSI', 'Strategy']], use_container_width=True, height=520)
+    # แสดงตาราง RSI พร้อมสีสัน
+    st.dataframe(rsi_df[['RSI', 'Strategy']].style.highlight_max(subset=['RSI'], color='#2E7D32').highlight_min(subset=['RSI'], color='#C62828'), use_container_width=True, height=520)
 
 # --- 4. ACTIONS ---
 with st.expander("⚙️ จัดการรบ (เติมกระสุน / สั่งยิง / ขาย)"):
@@ -93,5 +101,3 @@ with st.expander("⚙️ จัดการรบ (เติมกระสุ�
                 st.success(f"ขาย {target_sell} เรียบร้อย!")
                 time.sleep(1)
                 st.rerun()
-
-st.info("ดึงค่ากำไร % และ Performance กลับมาแสดงผลแบบ Real-time ให้แล้วครับประธาน")
