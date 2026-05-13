@@ -24,17 +24,35 @@ if 'my_assets' not in st.session_state:
         "NBIS": {"Val": 2955.28, "PL": 16.69, "RSI": 30}
     }
 
-# --- 2. RSI LIVE ENGINE (Simulation) ---
+st.set_page_config(layout="wide")
+st.title("🚀 Chairman Nu Command Center V16.0")
+
+# --- 2. TACTICAL SETTINGS (ส่วนตั้งค่าที่เพิ่มใหม่) ---
+with st.sidebar:
+    st.header("⚙️ Tactical Settings")
+    tf = st.selectbox("เลือกช่วงเวลา RSI (Timeframe)", ["1 Minute", "1 Hour", "1 Day"])
+    
+    # กำหนดความแรงของการขยับตาม Timeframe
+    if tf == "1 Minute":
+        volatility = 5  # ขยับแรงและเร็ว
+        st.info("โหมดเทรดเร็ว: RSI จะผันผวนสูง")
+    elif tf == "1 Hour":
+        volatility = 2  # ขยับปานกลาง
+        st.info("โหมดเฝ้าระวัง: RSI ขยับตามรอบชั่วโมง")
+    else:
+        volatility = 1  # ขยับน้อยมาก
+        st.info("โหมดลงทุนยาว: RSI นิ่งและแม่นยำ")
+
+# --- 3. RSI LIVE ENGINE (Simulation based on Timeframe) ---
 for stock in st.session_state.my_assets:
     if "RSI" not in st.session_state.my_assets[stock]:
         st.session_state.my_assets[stock]["RSI"] = 50
-    # สุ่มการขยับ RSI เล็กน้อยเพื่อให้รู้ว่าระบบทำงาน
-    st.session_state.my_assets[stock]["RSI"] = max(10, min(90, st.session_state.my_assets[stock]["RSI"] + random.randint(-2, 2)))
+    
+    # ขยับค่า RSI ตามความผันผวนของ Timeframe ที่เลือก
+    change = random.randint(-volatility, volatility)
+    st.session_state.my_assets[stock]["RSI"] = max(10, min(90, st.session_state.my_assets[stock]["RSI"] + change))
 
-st.set_page_config(layout="wide")
-st.title("🚀 Chairman Nu Command Center")
-
-# --- 3. DASHBOARD METRICS ---
+# --- 4. DASHBOARD METRICS ---
 df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
 total_val = df['Val'].sum()
 avg_pl = df['PL'].mean()
@@ -42,13 +60,13 @@ total_profit = (total_val * avg_pl) / 100
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("📦 Portfolio Value", f"{total_val:,.2f} THB")
-m2.metric("📈 Avg Profit (%)", f"{avg_pl:.2f}%", delta=f"{avg_pl:.2f}%")
+m2.metric("📈 Avg Profit (%)", f"{avg_pl:.2f}%", delta=f"{tf} View")
 m3.metric("💰 Net Profit (THB)", f"{total_profit:,.2f}")
 m4.metric("🔫 AMMO REMAINING", f"{st.session_state.cash_balance:,.2f}")
 
 st.markdown("---")
 
-# --- 4. MONITORING (PORTFOLIO & RSI คู่กัน) ---
+# --- 5. MONITORING ---
 col_left, col_right = st.columns([1.2, 1])
 
 with col_left:
@@ -56,7 +74,7 @@ with col_left:
     st.table(df[['Val', 'PL']])
 
 with col_right:
-    st.subheader("📉 RSI TACTICAL ANALYSIS")
+    st.subheader(f"📉 RSI TACTICAL ({tf})")
     def get_strategy(rsi):
         if rsi >= 70: return "⚠️ OVERBOUGHT (เก็บเกี่ยว)"
         elif rsi <= 30: return "🚀 OVERSOLD (สั่งยิง)"
@@ -64,10 +82,9 @@ with col_right:
     
     rsi_df = df.copy()
     rsi_df['Strategy'] = rsi_df['RSI'].apply(get_strategy)
-    # ใช้ dataframe ปกติเพื่อเลี่ยง Error ของ matplotlib
     st.dataframe(rsi_df[['RSI', 'Strategy']], use_container_width=True, height=520)
 
-# --- 5. ACTIONS ---
+# --- 6. ACTIONS ---
 with st.expander("⚙️ จัดการรบ (เติมกระสุน / สั่งยิง / ขาย)"):
     c1, c2, c3 = st.columns(3)
     with c1:
