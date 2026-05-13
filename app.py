@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import time
 
-# --- 1. INITIAL STATE ---
+# --- 1. INITIAL STATE (รักษาค่าเดิมของประธาน) ---
 if 'cash_balance' not in st.session_state:
     st.session_state.cash_balance = 2970.05
 
@@ -23,28 +23,34 @@ if 'my_assets' not in st.session_state:
         "NBIS": {"Val": 2955.28, "PL": 16.69, "RSI": 30}
     }
 
+st.set_page_config(layout="wide") # ปรับหน้าจอให้กว้างเพื่อรองรับ 2 คอลัมน์
 st.title("🚀 Chairman Nu Command Center")
 
-# --- 2. STRATEGIC PORTFOLIO ---
-st.subheader("📊 STRATEGIC PORTFOLIO")
-df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
-st.table(df[['Val', 'PL']])
-st.metric("💰 AMMO REMAINING (THB)", f"{st.session_state.cash_balance:,.2f}")
+# --- 2. COMBINED MONITORING SECTION (ยุบรวมไว้ที่เดียวกัน) ---
+st.markdown("---")
+view_col1, view_col2 = st.columns([1.2, 1]) # แบ่งสัดส่วนคอลัมน์
 
-# --- 3. RSI STRATEGIC ANALYSIS ---
-st.subheader("📉 RSI TACTICAL ANALYSIS")
-def get_strategy(rsi):
-    if rsi >= 70: return "⚠️ OVERBOUGHT (เก็บเกี่ยว)"
-    elif rsi <= 30: return "🚀 OVERSOLD (สั่งยิง)"
-    else: return "Hold (เฝ้าระวัง)"
+with view_col1:
+    st.subheader("📊 STRATEGIC PORTFOLIO")
+    df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
+    st.table(df[['Val', 'PL']])
+    st.metric("💰 AMMO REMAINING (THB)", f"{st.session_state.cash_balance:,.2f}")
 
-rsi_df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
-if 'RSI' not in rsi_df.columns:
-    rsi_df['RSI'] = 50
-rsi_df['Strategy'] = rsi_df['RSI'].apply(get_strategy)
-st.dataframe(rsi_df[['RSI', 'Strategy']], use_container_width=True)
+with view_col2:
+    st.subheader("📉 RSI TACTICAL ANALYSIS")
+    def get_strategy(rsi):
+        if rsi >= 70: return "⚠️ OVERBOUGHT (เก็บเกี่ยว)"
+        elif rsi <= 30: return "🚀 OVERSOLD (สั่งยิง)"
+        else: return "Hold (เฝ้าระวัง)"
+    
+    rsi_df = pd.DataFrame.from_dict(st.session_state.my_assets, orient='index')
+    if 'RSI' not in rsi_df.columns: rsi_df['RSI'] = 50
+    rsi_df['Strategy'] = rsi_df['RSI'].apply(get_strategy)
+    st.dataframe(rsi_df[['RSI', 'Strategy']], use_container_width=True, height=520)
 
-# --- 4. ACTIONS ---
+st.markdown("---")
+
+# --- 3. ACTIONS ---
 with st.expander("⚙️ จัดการรบ (เติมกระสุน / สั่งยิง / ขาย)"):
     col1, col2, col3 = st.columns(3)
     
@@ -81,4 +87,4 @@ with st.expander("⚙️ จัดการรบ (เติมกระสุ�
                 time.sleep(1)
                 st.rerun()
 
-st.info("ระบบยุทธวิธี RSI และปุ่มขาย พร้อมประจำการแล้วครับประธาน!")
+st.info("จัดระเบียบหน้าจอให้ประธานเรียบร้อยครับ ยุทธวิธีและพอร์ตอยู่ระดับสายตาเดียวกันแล้ว")
